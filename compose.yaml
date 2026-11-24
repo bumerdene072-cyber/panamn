@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATA_DIR: /data
+      PUBLIC_ORIGIN: https://${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
+      WIRE_API_KEY: ${WIRE_API_KEY:-}
+    volumes:
+      - jobs:/data
+  https:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy_config:/config
+volumes:
+  jobs:
+  certificates:
+  caddy_config:

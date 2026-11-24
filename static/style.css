@@ -13,3 +13,4 @@ details{border-top:1px solid #483954;margin-top:24px;padding-top:15px}summary{cu
 #status{background:#312340;border-radius:10px;padding:12px}#status[data-error],#link-error{color:#ffbec7}#results article{border:1px solid #574267;border-radius:14px;padding:14px;margin:12px 0}h2{font-size:1rem;margin:0 0 8px}audio{width:100%}a{color:#e1c3ff;font-weight:750}
 :focus-visible{outline:2px solid #f4e7ff;outline-offset:3px}[hidden]{display:none!important}
 #install{margin-left:auto;padding:8px 12px;font-size:.9rem}
+#payment{border-top:1px solid #483954;padding-top:16px;margin-top:16px}.payment-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}#payment-notice{color:#d0bedf;margin-bottom:0}#verify-payment{background:#48365a;color:#f8edff}

@@ -1,23 +1,29 @@
+import json
 import logging
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import sys
-import tempfile
-from threading import BoundedSemaphore, Lock, Thread, Timer
-from uuid import uuid4
+import time
+from threading import BoundedSemaphore, Lock, Thread
+from uuid import UUID, uuid4
 
 from flask import Flask, jsonify, request, send_file
+
+import wire
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 51 * 1024 * 1024
 LIMIT = 50 * 1024 * 1024
-RETENTION = 3600
+RETENTION = 24 * 3600
+PAID_RETENTION = 7 * 24 * 3600
+DATA_DIR = Path(os.environ.get("DATA_DIR", "/tmp/duu-data")).resolve()
+DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
 FORMATS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".mp4"}
 STEMS = {"vocals": "vocals", "instrumental": "no_vocals"}
-jobs = {}
 lock = Lock()
+payment_lock = Lock()
 slots = BoundedSemaphore(1)
 
 
@@ -35,6 +41,7 @@ def service_worker():
 
 @app.after_request
 def prevent_job_caching(response):
+    response.headers["Referrer-Policy"] = "no-referrer"
     if request.path.startswith("/api/"):
         response.cache_control.no_store = True
     return response
@@ -45,10 +52,27 @@ def oversized(_):
     return jsonify(error="Файлын хэмжээ 50 МБ-аас хэтэрсэн байна."), 413
 
 
-def expire(job_id, folder):
-    with lock:
-        jobs.pop(job_id, None)
-    shutil.rmtree(folder, ignore_errors=True)
+def read_job(job_id):
+    try:
+        if UUID(job_id).hex != job_id:
+            return None
+        job = json.loads((DATA_DIR / job_id / "job.json").read_text())
+    except (ValueError, FileNotFoundError):
+        return None
+    return job if job["expires"] > time.time() else None
+
+
+def write_job(job_id, job):
+    folder = DATA_DIR / job_id
+    temporary = folder / "job.tmp"
+    temporary.write_text(json.dumps(job))
+    temporary.replace(folder / "job.json")
+
+
+def remove_expired():
+    for metadata in DATA_DIR.glob("*/job.json"):
+        if not read_job(metadata.parent.name):
+            shutil.rmtree(metadata.parent, ignore_errors=True)
 
 
 def run(command, timeout):
@@ -75,21 +99,22 @@ def separate(job_id, folder, source):
              os.environ.get("DEMUCS_DEVICE", "cpu"), "--two-stems", "vocals",
              "--mp3", "--mp3-bitrate", "320", "-o", str(folder), str(track)], 1200)
         for name in STEMS.values():
-            if (folder / "htdemucs" / "track" / f"{name}.mp3").stat().st_size == 0:
+            stem = folder / "htdemucs" / "track" / f"{name}.mp3"
+            if not stem.stat().st_size:
                 raise ValueError("Empty output stem")
+            run(["ffmpeg", "-nostdin", "-v", "error", "-i", str(stem), "-t", "20",
+                 "-c:a", "libmp3lame", "-b:a", "128k", str(folder / f"preview-{name}.mp3")], 30)
         track.unlink()
         with lock:
-            jobs[job_id]["status"] = "ready"
+            write_job(job_id, {"status": "ready", "expires": time.time() + RETENTION})
     except Exception:
         logging.exception("Separation failed for job %s", job_id)
         shutil.rmtree(folder, ignore_errors=True)
         with lock:
-            jobs[job_id].update(status="failed", error=message)
+            folder.mkdir(mode=0o700)
+            write_job(job_id, {"status": "failed", "error": message, "expires": time.time() + 3600})
     finally:
         slots.release()
-        timer = Timer(RETENTION, expire, args=(job_id, folder))
-        timer.daemon = True
-        timer.start()
 
 
 @app.post("/api/jobs")
@@ -100,10 +125,20 @@ def submit():
         return jsonify(error="Зөвшөөрөлтэй, дэмжигдсэн аудио эсвэл видео файл оруулна уу."), 400
     if not slots.acquire(blocking=False):
         return jsonify(error="Сервер дуу боловсруулж байна. Түр хүлээгээд дахин оролдоно уу."), 429
-    folder = None
     job_id = uuid4().hex
+    folder = DATA_DIR / job_id
+    started = False
     try:
-        folder = Path(tempfile.mkdtemp(prefix="duu-"))
+        if payment_lock.acquire(blocking=False):
+            try:
+                with lock:
+                    remove_expired()
+            finally:
+                payment_lock.release()
+        with lock:
+            if sum(1 for _ in DATA_DIR.glob("*/job.json")) >= 150:
+                return jsonify(error="Серверийн хадгалах зай түр дүүрсэн байна."), 503
+            folder.mkdir(mode=0o700)
         source = folder / f"source{ext}"
         upload.save(source)
         if source.stat().st_size > LIMIT:
@@ -111,37 +146,89 @@ def submit():
         if source.stat().st_size == 0:
             return jsonify(error="Файл хоосон байна."), 400
         with lock:
-            jobs[job_id] = {"status": "processing", "folder": folder}
+            write_job(job_id, {"status": "processing", "expires": time.time() + 3600})
         Thread(target=separate, args=(job_id, folder, source), daemon=True).start()
-        folder = None
+        started = True
         return jsonify(id=job_id), 202
     finally:
-        if folder is not None or job_id not in jobs:
-            with lock:
-                jobs.pop(job_id, None)
-            if folder is not None:
-                shutil.rmtree(folder, ignore_errors=True)
+        if not started:
+            shutil.rmtree(folder, ignore_errors=True)
             slots.release()
 
 
 @app.get("/api/jobs/<job_id>")
 def status(job_id):
     with lock:
-        job = jobs.get(job_id)
+        job = read_job(job_id)
         if job is None:
             return jsonify(error="Боловсруулалтын хугацаа дууссан байна."), 404
-        return jsonify({key: job[key] for key in ("status", "error") if key in job})
+        return jsonify(status=job["status"], error=job.get("error"),
+                       paid=job.get("paid", False), payment_available=wire.configured(),
+                       amount=wire.PRICE, payment_started=bool(job.get("intent")))
 
 
-@app.get("/api/jobs/<job_id>/<stem>")
-def result(job_id, stem):
+def mark_paid(job_id, job):
+    job.update(paid=True, expires=time.time() + PAID_RETENTION)
     with lock:
-        job = jobs.get(job_id)
-        if not job or job["status"] != "ready" or stem not in STEMS:
+        write_job(job_id, job)
+
+
+@app.post("/api/jobs/<job_id>/checkout")
+@app.post("/api/jobs/<job_id>/verify-payment")
+def payment(job_id):
+    if not wire.configured():
+        return jsonify(error="Онлайн төлбөр хараахан идэвхжээгүй байна."), 503
+    checkout = request.path.endswith("/checkout")
+    if not payment_lock.acquire(blocking=False):
+        return jsonify(error="Төлбөрийн холболт завгүй байна. Дахин оролдоно уу."), 429
+    try:
+        with lock:
+            job = read_job(job_id)
+        if not job or job["status"] != "ready":
+            return jsonify(error="Захиалга олдсонгүй."), 404
+        if job.get("paid"):
+            return jsonify(paid=True)
+        intent = job.get("intent")
+        state = wire.payment_status(intent, job_id) if intent else None
+        if state == "succeeded":
+            mark_paid(job_id, job)
+            return jsonify(paid=True)
+        if not checkout:
+            return jsonify(paid=False)
+        if (not intent or state == "canceled") and job.get("order_deadline", job["expires"]) < time.time() + 7200:
+            return jsonify(error="Файлын хадгалах хугацаа дуусах дөхсөн байна. Дахин боловсруулна уу."), 409
+        if not intent or state == "canceled":
+            attempt = job.get("attempt", 0) + 1
+            key = f"{job_id}-{attempt}"
+            intent = wire.create_intent(job_id, f"{key}-intent")
+            job.update(intent=intent, attempt=attempt, checkout_url=None,
+                       order_deadline=job.get("order_deadline", job["expires"]),
+                       expires=time.time() + PAID_RETENTION)
+            with lock:
+                write_job(job_id, job)
+        if not job.get("checkout_url"):
+            job["checkout_url"] = wire.create_checkout(intent, f'{job_id}-{job["attempt"]}-checkout')
+            with lock:
+                write_job(job_id, job)
+        return jsonify(paid=False, url=job["checkout_url"])
+    except wire.WireError:
+        return jsonify(error="Wire төлбөрийн мэдээлэл авахад алдаа гарлаа. Дахин шалгана уу."), 502
+    finally:
+        payment_lock.release()
+
+
+@app.get("/api/jobs/<job_id>/<variant>/<stem>")
+def result(job_id, variant, stem):
+    with lock:
+        job = read_job(job_id)
+        if not job or job["status"] != "ready" or stem not in STEMS or variant not in ("preview", "full"):
             return jsonify(error="Аудио файл олдсонгүй."), 404
-        path = job["folder"] / "htdemucs" / "track" / f"{STEMS[stem]}.mp3"
+        if variant == "full" and not job.get("paid"):
+            return jsonify(error="Бүтэн MP3 татахын тулд төлбөрөө баталгаажуулна уу."), 402
+        folder = DATA_DIR / job_id
+        name = STEMS[stem]
+        path = folder / f"preview-{name}.mp3" if variant == "preview" else folder / "htdemucs" / "track" / f"{name}.mp3"
         response = send_file(path, mimetype="audio/mpeg", max_age=0,
-                             as_attachment=request.args.get("download") == "1",
-                             download_name=f"{stem}.mp3")
+                             as_attachment=variant == "full", download_name=f"{stem}.mp3")
         response.cache_control.private = True
         return response

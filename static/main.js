@@ -5,6 +5,14 @@ const drop = document.querySelector('#drop');
 const button = document.querySelector('#submit');
 const status = document.querySelector('#status');
 const results = document.querySelector('#results');
+const checkout = document.querySelector('#checkout');
+const verifyPayment = document.querySelector('#verify-payment');
+const paymentNotice = document.querySelector('#payment-notice');
+const paymentPanel = document.querySelector('#payment');
+const price = document.querySelector('#price');
+const jobKey = 'duu-salgagch-current-job';
+let activeJob = null;
+let paymentBusy = false;
 const idleLabel = filename.textContent;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -38,6 +46,82 @@ async function request(url, config) {
   return body;
 }
 
+function showJob(job, id) {
+  activeJob = id;
+  history.replaceState(null, '', '/#job=' + id);
+  const url = '/api/jobs/' + id;
+  results.querySelectorAll('article').forEach((card, i) => {
+    const stem = ['vocals', 'instrumental'][i];
+    const preview = url + '/preview/' + stem;
+    const player = card.querySelector('audio');
+    if (player.getAttribute('src') !== preview) player.src = preview;
+    const link = card.querySelector('a');
+    link.href = url + '/full/' + stem;
+    link.hidden = !job.paid;
+  });
+  price.textContent = new Intl.NumberFormat('mn-MN').format(job.amount);
+  paymentPanel.hidden = job.paid;
+  checkout.hidden = !job.payment_available;
+  verifyPayment.hidden = !job.payment_available || !job.payment_started;
+  paymentNotice.textContent = job.payment_available ?
+    'Төлбөр баталгаажсаны дараа хоёр MP3-ыг 7 хоногийн дотор татаарай.' :
+    'Онлайн төлбөр хараахан идэвхжээгүй байна.';
+  announce(job.paid ? 'Төлбөр баталгаажлаа. Бүтэн MP3-аа татаарай.' : 'Эхний 20 секундийг үнэгүй сонсоорой.');
+  results.hidden = false;
+}
+
+async function resumeJob(id) {
+  const job = await request('/api/jobs/' + id);
+  if (job.status === 'ready') showJob(job, id);
+  if (job.status === 'failed') throw new Error(job.error);
+  return job;
+}
+
+async function waitForJob(id) {
+  let job = await resumeJob(id);
+  if (job.status === 'processing') announce('Хоолой, хөгжмийг салгаж байна. Хэдэн минут үргэлжилж болно.');
+  while (job.status === 'processing') {
+    await pause(2000);
+    job = await resumeJob(id);
+  }
+  return job;
+}
+
+async function handlePayment(action) {
+  if (!activeJob || paymentBusy) return;
+  paymentBusy = true;
+  checkout.disabled = verifyPayment.disabled = button.disabled = true;
+  const id = activeJob;
+  try {
+    const result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
+    if (result.url) {
+      location.assign(result.url);
+      return;
+    }
+    await resumeJob(id);
+    if (!result.paid) paymentNotice.textContent = 'Төлбөр хараахан баталгаажаагүй байна. Түр хүлээгээд дахин шалгана уу.';
+  } catch (error) {
+    paymentNotice.textContent = error.message;
+  } finally {
+    paymentBusy = false;
+    checkout.disabled = verifyPayment.disabled = button.disabled = false;
+  }
+}
+
+checkout.addEventListener('click', () => handlePayment('checkout'));
+verifyPayment.addEventListener('click', () => handlePayment('verify-payment'));
+
+const wireReturn = new URLSearchParams(location.search).get('wire');
+const linkedJob = new URLSearchParams(location.hash.slice(1)).get('job');
+const previousJob = /^[a-f0-9]{32}$/.test(linkedJob || '') ? linkedJob : localStorage.getItem(jobKey);
+if (previousJob) {
+  button.disabled = true;
+  waitForJob(previousJob).then(job => {
+    if (wireReturn === 'return' && job.payment_started && !job.paid) return handlePayment('verify-payment');
+  }).catch(error => announce(error.message, true)).finally(() => { button.disabled = false; });
+}
+if (wireReturn) history.replaceState(null, '', '/' + location.hash);
+
 form.addEventListener('submit', async e => {
   e.preventDefault();
   if (button.disabled) return;
@@ -52,21 +136,8 @@ form.addEventListener('submit', async e => {
   announce('Файл илгээж байна…');
   try {
     const {id} = await request('/api/jobs', {method: 'POST', body: data});
-    const url = '/api/jobs/' + id;
-    announce('Хоолой, хөгжмийг салгаж байна. Дууны уртаас хамаарч хэдэн минут үргэлжилж болно.');
-    let job;
-    do {
-      await pause(2000);
-      job = await request(url);
-    } while (job.status === 'processing');
-    if (job.status !== 'ready') throw new Error(job.error || 'Боловсруулалт амжилтгүй боллоо.');
-    results.querySelectorAll('article').forEach((card, i) => {
-      const stem = url + '/' + ['vocals', 'instrumental'][i];
-      card.querySelector('audio').src = stem;
-      card.querySelector('a').href = stem + '?download=1';
-    });
-    announce('Бэлэн боллоо.');
-    results.hidden = false;
+    localStorage.setItem(jobKey, id);
+    await waitForJob(id);
   } catch (error) {
     announce(error instanceof TypeError ? 'Холболт тасарлаа. Дахин оролдоно уу.' : error.message, true);
   } finally {

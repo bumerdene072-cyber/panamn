@@ -17,7 +17,7 @@
   <section class="intro">
     <div class="wave" aria-hidden="true"></div>
     <h1>Дуунаас хоолой,<br><em>хөгжмийг салга.</em></h1>
-    <p>Дуугаа оруулаад хоолой болон караоке хувилбарыг тусад нь сонсож, MP3-аар татаарай.</p>
+    <p>Дууны хоолой, хөгжмийг салгаад эхний 20 секундийг үнэгүй сонсоорой.</p>
   </section>
   <section class="panel" aria-label="Дуу боловсруулах">
     <form id="upload">
@@ -32,9 +32,16 @@
     </form>
     <p id="status" role="status" hidden></p>
     <div id="results" hidden>
-      <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download href="#">Хоолой татах · MP3</a></article>
-      <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download href="#">Хөгжим татах · MP3</a></article>
-      <small>Татах холбоос 1 цагийн турш ажиллана.</small>
+      <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
+      <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download hidden>Бүтэн хөгжим татах · MP3</a></article>
+      <div id="payment">
+        <strong>Бүтэн хоолой + хөгжим · <span id="price"></span>₮</strong>
+        <div class="payment-actions">
+          <button id="checkout" type="button" hidden>Wire-ээр төлөх</button>
+          <button id="verify-payment" type="button" hidden>Төлбөр шалгах</button>
+        </div>
+        <p id="payment-notice" role="status"></p>
+      </div>
     </div>
     <details id="ios-install" hidden><summary>iPhone-д апп суулгах</summary><p>Safari дээр хуваалцах цэсийг нээгээд “Add to Home Screen” сонгоно уу.</p></details>
     <details>

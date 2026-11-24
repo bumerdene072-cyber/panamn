@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="mn">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#12101a">
+<title>Дуу Салгагч</title>
+<link rel="manifest" href="/static/manifest.webmanifest">
+<link rel="icon" href="/static/icon-192.png">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+<link rel="stylesheet" href="/static/style.css">
+<script defer src="/static/main.js"></script>
+</head>
+<body>
+<header><span class="mark" aria-hidden="true">▂▆█▅▂</span> Дуу Салгагч <button id="install" type="button" hidden>Апп суулгах</button></header>
+<main>
+  <section class="intro">
+    <div class="wave" aria-hidden="true"></div>
+    <h1>Дуунаас хоолой,<br><em>хөгжмийг салга.</em></h1>
+    <p>Дуугаа оруулаад хоолой болон караоке хувилбарыг тусад нь сонсож, MP3-аар татаарай.</p>
+  </section>
+  <section class="panel" aria-label="Дуу боловсруулах">
+    <form id="upload">
+      <label id="drop" class="drop">
+        <input type="file" name="audio" id="audio" accept=".mp3,.wav,.m4a,.flac,.ogg,.mp4" required>
+        <span class="music" aria-hidden="true">♫</span>
+        <strong id="filename">Файл сонгох эсвэл чирж оруулах</strong>
+        <small>MP3, WAV, M4A, FLAC, OGG, MP4 · 50 МБ · 10 минут хүртэл</small>
+      </label>
+      <label class="rights"><input type="checkbox" name="rights" value="yes" required> Би энэ файлыг боловсруулах эрхтэй.</label>
+      <button id="submit" type="submit">Хоолой, хөгжмийг салгах</button>
+    </form>
+    <p id="status" role="status" hidden></p>
+    <div id="results" hidden>
+      <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download href="#">Хоолой татах · MP3</a></article>
+      <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download href="#">Хөгжим татах · MP3</a></article>
+      <small>Татах холбоос 1 цагийн турш ажиллана.</small>
+    </div>
+    <details id="ios-install" hidden><summary>iPhone-д апп суулгах</summary><p>Safari дээр хуваалцах цэсийг нээгээд “Add to Home Screen” сонгоно уу.</p></details>
+    <details>
+      <summary>YouTube бичлэг ашиглах</summary>
+      <p>YouTube холбоосоор бичлэгээ нээж шалгаарай. Өөрийн бичлэгийг <a href="https://studio.youtube.com/" target="_blank" rel="noopener noreferrer">YouTube Studio</a>-оос татаж аваад дээр оруулна уу.</p>
+      <form id="youtube"><label for="link">YouTube холбоос</label><div class="urlrow"><input id="link" type="url" required placeholder="https://youtu.be/…"><button type="submit">Нээх</button></div><small id="link-error" role="status"></small></form>
+    </details>
+  </section>
+</main>
+</body>
+</html>

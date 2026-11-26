@@ -6,6 +6,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from threading import BoundedSemaphore, Lock, Thread
 from urllib.parse import parse_qs, urlsplit

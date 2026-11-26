@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import secrets
 from contextlib import closing
 from pathlib import Path
 import shutil
@@ -422,8 +423,21 @@ def mark_paid(job_id, job):
 def wire_order_number(job_id):
     with closing(sqlite3.connect(DATA_DIR / "wire-orders.sqlite3")) as db, db:
         db.execute("CREATE TABLE IF NOT EXISTS orders (number INTEGER PRIMARY KEY, job_id TEXT NOT NULL UNIQUE)")
-        db.execute("INSERT INTO orders (job_id) VALUES (?) ON CONFLICT(job_id) DO NOTHING", (job_id,))
-        return db.execute("SELECT number FROM orders WHERE job_id = ?", (job_id,)).fetchone()[0]
+        existing = db.execute("SELECT number FROM orders WHERE job_id = ?", (job_id,)).fetchone()
+        if existing:
+            return existing[0]
+        for _ in range(10):
+            number = 10_000_000 + secrets.randbelow(90_000_000)
+            inserted = db.execute(
+                "INSERT INTO orders (number, job_id) VALUES (?, ?) ON CONFLICT DO NOTHING",
+                (number, job_id),
+            )
+            if inserted.rowcount:
+                return number
+            existing = db.execute("SELECT number FROM orders WHERE job_id = ?", (job_id,)).fetchone()
+            if existing:
+                return existing[0]
+        raise wire.WireError("Could not reserve a unique order number")
 
 
 @app.post("/api/jobs/<job_id>/checkout")

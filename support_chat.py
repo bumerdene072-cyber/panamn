@@ -6,8 +6,12 @@ import secrets
 import sqlite3
 import time
 from contextlib import closing
+from datetime import datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo
+
+from wire import PRICE
 
 from flask import Blueprint, jsonify, request, send_from_directory
 
@@ -73,7 +77,52 @@ def messages():
     return response
 
 
-def relay():
+
+COMMANDS = {"menu":"Админы цэс","stats":"Өнөөдрийн зочлол, төлбөр","site":"Сайтын төлөв","support":"Тусламжийн чат"}
+BUTTONS = {"📊 Өнөөдөр":"stats","🌐 Сайтын төлөв":"site","💬 Тусламж":"support","☰ Цэс":"menu"}
+
+
+def admin_response(command, db):
+    if command == "menu":
+        keys = list(BUTTONS)
+        keyboard = [[{"text": key} for key in keys[i:i+2]] for i in (0, 2)]
+        return {"text":"PANAMN.SITE · Админы цэс\nХэрэглэгчийн мессежид Reply дарж хариулаарай.",
+                "reply_markup":{"keyboard":keyboard,"resize_keyboard":True}}
+    if command == "site":
+        start = time.monotonic()
+        try:
+            with urlopen("https://panamn.site/robots.txt", timeout=5) as response:
+                status = f"HTTP {response.status} · {round((time.monotonic()-start)*1000)} мс"
+        except OSError:
+            status = "Сайттай холбогдож чадсангүй"
+        return {"text":f"🌐 PANAMN.SITE\n{status}\nhttps://panamn.site/"}
+    if command == "support":
+        pending, = db.execute("""SELECT COUNT(DISTINCT a.chat) FROM messages a
+            WHERE a.direction='out' AND a.ts>=? AND NOT EXISTS (
+              SELECT 1 FROM messages b WHERE b.chat=a.chat AND b.direction='in' AND b.id>a.id
+            )""", (int(time.time())-86400,)).fetchone()
+        return {"text":f"💬 Сүүлийн 24 цагт хариу хүлээж буй чат: {pending}"}
+    zone = ZoneInfo("Asia/Ulaanbaatar")
+    today = datetime.now(zone).date()
+    directory = Path(os.getenv("DATA_DIR", "/tmp/duu-data")).resolve()
+    stats = directory / "telegram-stats.sqlite3"
+    visits = 0
+    if stats.is_file():
+        with closing(sqlite3.connect(stats.as_uri()+"?mode=ro", uri=True)) as connection:
+            visits, = connection.execute("SELECT COUNT(*) FROM visitors WHERE day=?", (today.isoformat(),)).fetchone()
+    paid = 0
+    for path in directory.glob("*/job.json"):
+        try:
+            job = json.loads(path.read_text())
+            stamp = job.get("paid_at")
+            if job.get("paid") and isinstance(stamp, (int, float)):
+                paid += datetime.fromtimestamp(stamp, zone).date() == today
+        except (OSError, ValueError, OverflowError):
+            continue
+    return {"text":f"📊 {today} · Улаанбаатар\nЗочилсон хөтөч: {visits}\nБаталгаажсан төлбөр: {paid}\nНийт төлбөр: {paid*PRICE:,}₮"}
+
+
+def relay(register=False):
     token = os.environ["TELEGRAM_BOT_TOKEN"]
     owner = int(os.environ["TELEGRAM_CHAT_ID"])
     if owner <= 0 or not re.fullmatch(r"[0-9]+:[A-Za-z0-9_-]+", token):
@@ -89,6 +138,12 @@ def relay():
         return result["result"]
 
     with closing(connect()) as db:
+        if register:
+            api("setMyCommands", {"scope":{"type":"chat","chat_id":owner},
+                                  "commands":[{"command":key,"description":label}
+                                              for key,label in COMMANDS.items()]})
+            api("sendMessage", {"chat_id":owner, **admin_response("menu", db)})
+            return
         offset = db.execute("SELECT offset FROM cursor WHERE id=1").fetchone()
         updates = api("getUpdates", {"offset": offset[0] if offset else 0,
                                     "allowed_updates": ["message"], "limit": 100})
@@ -100,6 +155,14 @@ def relay():
                         and isinstance(msg.get("text"), str)):
                     original = msg.get("reply_to_message", {}).get("message_id")
                     source = db.execute("SELECT chat FROM messages WHERE telegram_id=?", (original,)).fetchone()
+                    text = msg["text"].strip()
+                    command = BUTTONS.get(text)
+                    if text.startswith("/"):
+                        command = text.split(maxsplit=1)[0][1:].split("@",1)[0].lower()
+                        if command == "start":
+                            command = "menu"
+                    if not source and command in COMMANDS:
+                        api("sendMessage", {"chat_id":owner, **admin_response(command, db)})
                     if source:
                         db.execute(
                             """INSERT OR IGNORE INTO messages(chat,body,direction,ts,update_id)
@@ -120,7 +183,7 @@ def relay():
 
 if __name__ == "__main__":
     try:
-        relay()
+        relay(register=os.getenv("PANAMN_REGISTER_BOT_MENU") == "1")
     except Exception as error:
         logging.error("Support relay failed (%s, HTTP %s)", type(error).__name__, getattr(error, "code", "-"))
         raise SystemExit(1)

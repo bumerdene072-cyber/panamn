@@ -9,11 +9,14 @@ main{max-width:44rem;margin:auto;padding:1rem} #history{display:grid;gap:.65rem;
 .bubble{overflow-wrap:anywhere;white-space:pre-wrap;background:var(--soft);border-radius:1rem;padding:.65rem 1rem;max-width:86%;margin:0;justify-self:start}
 .bubble.out{background:var(--accent);color:var(--accent-text);justify-self:end}
 textarea{width:100%;min-height:5rem;padding:.7rem;font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:.7rem}
+html.embedded #standalone-header,html.embedded #standalone-title{display:none}
+html.embedded main{margin:0;min-height:100dvh;border:0;border-radius:0;box-shadow:none}
+html.embedded #history{height:calc(100dvh - 12rem);max-height:none;min-height:4rem}
 </style>
-<header class="top"><a class="brand" href="/">PANAMN.SITE</a></header>
+<script>if (window.parent !== window) document.documentElement.classList.add('embedded');</script>
+<header class="top" id="standalone-header"><a class="brand" href="/">PANAMN.SITE</a></header>
 <main class="panel">
-<h1>Тусламж</h1>
-<p>Асуултаа бичээрэй. Хариу энэ чатад ирнэ. Нууц үг, банкны мэдээлэл битгий оруулаарай.</p>
+<h1 id="standalone-title">Тусламж</h1>
 <section id="history" role="log" aria-label="Чатын мессежүүд"></section>
 <form id="chat-form">
 <label for="message">Мессеж</label>

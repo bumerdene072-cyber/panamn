@@ -4,6 +4,9 @@ services:
     restart: unless-stopped
     environment:
       DATA_DIR: /data
+      CACHE_DIR: /data/.youtube-cache
+      CACHE_TTL: ${CACHE_TTL:-21600}
+      CACHE_MAX_BYTES: ${CACHE_MAX_BYTES:-268435456}
       PUBLIC_ORIGIN: https://${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
       WIRE_API_KEY: ${WIRE_API_KEY:-}
       WIRE_WEBHOOK_SECRET: ${WIRE_WEBHOOK_SECRET:-}

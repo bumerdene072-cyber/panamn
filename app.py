@@ -9,13 +9,14 @@ import sys
 import tempfile
 import time
 from threading import BoundedSemaphore, Lock, Thread
-from urllib.parse import parse_qs, urlsplit
 from uuid import UUID, uuid4
 from zipfile import ZipFile
 
 from flask import Flask, jsonify, request, send_file
 
 import wire
+from yt import YouTubeImportError, download_youtube, read_youtube_cache, store_youtube_cache
+from yt import resolve as youtube_video_id
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 51 * 1024 * 1024
@@ -24,10 +25,6 @@ RETENTION = 24 * 3600
 PAID_RETENTION = 7 * 24 * 3600
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/tmp/duu-data")).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
-YOUTUBE_CACHE_DIR = DATA_DIR / ".youtube-cache"
-YOUTUBE_CACHE_TTL = 6 * 3600
-YOUTUBE_CACHE_LIMIT = 256 * 1024 * 1024
-YOUTUBE_AUDIO_FORMATS = (".m4a", ".webm", ".mp4")
 FORMATS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".mp4"}
 MEDIA_FORMATS = "mp3,wav,flac,ogg,mov,mp4,m4a,3gp,3g2,mj2,matroska,webm"
 STEMS = {"vocals": "vocals", "instrumental": "no_vocals"}
@@ -101,39 +98,6 @@ def run(command, timeout):
     )
 
 
-def youtube_video_id(link):
-    if len(link) > 2048:
-        return None
-    link = link.strip()
-    shared = re.search(r"https?://[^\s<>]+", link, re.IGNORECASE)
-    if shared:
-        link = shared[0].rstrip(").,]")
-    elif "://" not in link:
-        link = "https://" + link
-    try:
-        url = urlsplit(link)
-        if url.scheme not in {"http", "https"} or url.username or url.password or url.port:
-            return None
-    except ValueError:
-        return None
-    if url.hostname == "youtu.be":
-        video_id = url.path.strip("/")
-    elif url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com",
-                         "youtube-nocookie.com", "www.youtube-nocookie.com"}:
-        if url.path == "/watch":
-            video_id = parse_qs(url.query).get("v", [""])[0]
-        else:
-            match = re.fullmatch(r"/(?:shorts|live|embed|v)/([^/]+)/?", url.path)
-            video_id = match[1] if match else ""
-    else:
-        return None
-    return video_id if re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) else None
-
-
-class YouTubeImportError(Exception):
-    pass
-
-
 def copy_registered_source(video_id, folder):
     library = os.environ.get("PANAMN_SOURCE_DIR")
     if not library:
@@ -152,85 +116,6 @@ def copy_registered_source(video_id, folder):
         except FileNotFoundError:
             continue
     return None
-
-
-def prune_youtube_cache():
-    now = time.time()
-    entries = []
-    for path in YOUTUBE_CACHE_DIR.iterdir():
-        if not path.is_file():
-            continue
-        info = path.stat()
-        if now - info.st_mtime >= YOUTUBE_CACHE_TTL:
-            path.unlink(missing_ok=True)
-        else:
-            entries.append((info.st_mtime, info.st_size, path))
-    size = sum(entry[1] for entry in entries)
-    for _, length, path in sorted(entries):
-        if size <= YOUTUBE_CACHE_LIMIT:
-            break
-        path.unlink(missing_ok=True)
-        size -= length
-
-
-def read_youtube_cache(video_id, folder):
-    if not YOUTUBE_CACHE_DIR.is_dir():
-        return None
-    try:
-        prune_youtube_cache()
-        for extension in YOUTUBE_AUDIO_FORMATS:
-            cached = YOUTUBE_CACHE_DIR / f"{video_id}{extension}"
-            if cached.is_file() and 0 < cached.stat().st_size <= LIMIT:
-                destination = folder / f"cached{extension}"
-                shutil.copyfile(cached, destination)
-                return destination
-    except OSError:
-        logging.warning("YouTube cache read failed", exc_info=True)
-    return None
-
-
-def store_youtube_cache(video_id, source):
-    temporary = None
-    try:
-        YOUTUBE_CACHE_DIR.mkdir(mode=0o700, exist_ok=True)
-        with tempfile.NamedTemporaryFile(dir=YOUTUBE_CACHE_DIR, delete=False) as target:
-            temporary = Path(target.name)
-            with source.open("rb") as audio:
-                shutil.copyfileobj(audio, target)
-        temporary.replace(YOUTUBE_CACHE_DIR / f"{video_id}{source.suffix}")
-        prune_youtube_cache()
-    except OSError:
-        logging.warning("YouTube cache write failed", exc_info=True)
-        if temporary:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
-
-
-def download_youtube(video_id, folder):
-    completed = subprocess.run([sys.executable, "-m", "yt_dlp", "--ignore-config", "--no-playlist",
-         "--js-runtimes", "node", "--socket-timeout", "15", "--retries", "1",
-         "--match-filter", "!is_live & duration <= 600",
-         "--format", "bestaudio[ext=m4a]/bestaudio[ext=webm]/best[protocol=https][ext=mp4][height<=360]",
-         "--max-filesize", "50M", "--output", str(folder / "youtube.%(ext)s"),
-         "--", f"https://www.youtube.com/watch?v={video_id}"], timeout=150,
-        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, errors="replace",
-        stdin=subprocess.DEVNULL,
-    )
-    if completed.returncode:
-        detail = completed.stderr.lower()
-        logging.warning("YouTube import failed for %s: %s", video_id, completed.stderr[-1200:])
-        if "not a bot" in detail or "not a robot" in detail:
-            raise YouTubeImportError("YouTube серверээс аудио авахыг түр хязгаарлалаа. MP3 эсвэл MP4 файлаа оруулж үргэлжлүүлээрэй.")
-        if any(reason in detail for reason in ("unavailable", "private video", "age-restricted")):
-            raise YouTubeImportError("Энэ бичлэгийг YouTube-ээс авах боломжгүй байна. Өөр нээлттэй линк эсвэл MP3/MP4 файл оруулна уу.")
-        raise YouTubeImportError("YouTube-ээс аудио татаж чадсангүй. Өөр линк эсвэл MP3/MP4 файл оруулна уу.")
-    for extension in YOUTUBE_AUDIO_FORMATS:
-        source = folder / f"youtube{extension}"
-        if source.is_file() and 0 < source.stat().st_size <= LIMIT:
-            return source
-    raise YouTubeImportError("Бичлэг 10 минут эсвэл 50 МБ-ын хязгаарт багтаагүй, эсвэл татах боломжтой аудио олдсонгүй. MP3/MP4 файл оруулж үзээрэй.")
 
 
 def update_processing(job_id, **fields):
@@ -290,7 +175,17 @@ def process_audio(job_id, folder, source, video_id, operation):
                 "бичлэгийн холбоос эсвэл аудио файл оруулна уу."
             )
             try:
-                source = copy_registered_source(video_id, folder) or read_youtube_cache(video_id, folder)
+                source = copy_registered_source(video_id, folder)
+                if source is None and operation == "convert":
+                    mp3 = read_youtube_cache(video_id, folder, (".mp3",))
+                    if mp3 is not None:
+                        mp3.replace(folder / "source.mp3")
+                        with lock:
+                            write_job(job_id, {"status": "ready", "operation": "convert",
+                                               "expires": time.time() + RETENTION})
+                        return
+                cache_mp3 = source is None
+                source = source or read_youtube_cache(video_id, folder)
                 if source is None:
                     source = download_youtube(video_id, folder)
                     downloaded = True
@@ -308,6 +203,8 @@ def process_audio(job_id, folder, source, video_id, operation):
                  str(folder / "source.mp3")], 90)
             if downloaded:
                 store_youtube_cache(video_id, source)
+            if cache_mp3:
+                store_youtube_cache(video_id, folder / "source.mp3")
             source.unlink()
             with lock:
                 write_job(job_id, {"status": "ready", "operation": "convert",

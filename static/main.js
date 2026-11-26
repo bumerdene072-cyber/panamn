@@ -15,7 +15,8 @@ const paymentNotice = document.querySelector('#payment-notice');
 const paymentPanel = document.querySelector('#payment');
 const price = document.querySelector('#price');
 const downloadAll = document.querySelector('#download-all');
-const jobKey = 'duu-salgagch-current-job';
+const newJob = document.querySelector('#new-job');
+localStorage.removeItem('duu-salgagch-current-job');
 let activeJob = null;
 let paymentBusy = false;
 const idleLabel = filename.textContent;
@@ -95,7 +96,7 @@ async function request(url, config) {
 
 function showJob(job, id) {
   activeJob = id;
-  history.replaceState(null, '', '/#job=' + id);
+  newJob.hidden = false;
   const url = '/api/jobs/' + id;
   if (job.operation === 'convert') {
     results.hidden = true;
@@ -131,7 +132,6 @@ async function resumeJob(id) {
   const job = await request('/api/jobs/' + id);
   if (job.status === 'ready') showJob(job, id);
   if (job.status === 'failed') {
-    if (localStorage.getItem(jobKey) === id) localStorage.removeItem(jobKey);
     throw new Error(job.error);
   }
   return job;
@@ -209,22 +209,62 @@ async function handlePayment(action, attempts = 1) {
 checkout.addEventListener('click', () => handlePayment('checkout'));
 verifyPayment.addEventListener('click', () => handlePayment('verify-payment'));
 
+function clearJob() {
+  activeJob = null;
+  form.reset();
+  youtube.reset();
+  filename.textContent = idleLabel;
+  selectSource(false);
+  announce('');
+  newJob.hidden = true;
+  converted.hidden = true;
+  results.hidden = true;
+  convertedDownload.removeAttribute('href');
+  downloadAll.removeAttribute('href');
+  for (const player of results.querySelectorAll('audio')) {
+    player.removeAttribute('src');
+    player.load();
+  }
+  for (const link of results.querySelectorAll('article a')) link.removeAttribute('href');
+}
+
+newJob.addEventListener('click', () => {
+  if (!jobBusy && !paymentBusy) clearJob();
+});
+
+for (const link of [convertedDownload, downloadAll]) {
+  link.addEventListener('click', event => {
+    // Keep a manual retry available after an automatic checkout download.
+    if (event.isTrusted && activeJob) {
+      const downloadedJob = activeJob;
+      setTimeout(() => {
+        if (activeJob === downloadedJob && !jobBusy && !paymentBusy) clearJob();
+      }, 300);
+    }
+  });
+}
+
+window.addEventListener('pageshow', event => {
+  if (event.persisted && !jobBusy && !paymentBusy) clearJob();
+});
+
 const wireReturn = new URLSearchParams(location.search).get('wire');
 const linkedJob = new URLSearchParams(location.hash.slice(1)).get('job');
-const previousJob = /^[a-f0-9]{32}$/.test(linkedJob || '') ? linkedJob : localStorage.getItem(jobKey);
-if (previousJob) {
+if (['return', 'cancel'].includes(wireReturn) && /^[a-f0-9]{32}$/.test(linkedJob || '')) {
   jobBusy = true;
   updateJobButtons();
-  waitForJob(previousJob).then(job => {
+  waitForJob(linkedJob).then(job => {
     if (wireReturn !== 'return' || !job.payment_started) return;
     if (job.paid) downloadAll.click();
     else return handlePayment('verify-payment', 8);
-  }).catch(error => {
-    if (linkedJob) announce(error.message, true);
-    if (localStorage.getItem(jobKey) === previousJob) localStorage.removeItem(jobKey);
-  }).finally(() => { jobBusy = false; updateJobButtons(); });
+  }).catch(error => announce(error.message, true)).finally(() => {
+    history.replaceState(null, '', '/');
+    jobBusy = false;
+    updateJobButtons();
+  });
+} else if (wireReturn || linkedJob) {
+  history.replaceState(null, '', '/');
 }
-if (wireReturn) history.replaceState(null, '', '/' + location.hash);
 
 async function submitJob(event) {
   event.preventDefault();
@@ -238,6 +278,8 @@ async function submitJob(event) {
   const data = new FormData(inputForm);
   if (!fromFile) data.set("operation", event.submitter?.value || "separate");
   jobBusy = true;
+  activeJob = null;
+  newJob.hidden = true;
   updateJobButtons();
   results.hidden = true;
   converted.hidden = true;
@@ -245,7 +287,6 @@ async function submitJob(event) {
   announce(fromFile ? 'Файл илгээж байна…' : 'Холбоос шалгаж байна…');
   try {
     const {id} = await request('/api/jobs', {method: 'POST', body: data});
-    localStorage.setItem(jobKey, id);
     await waitForJob(id);
   } catch (error) {
     announce(error instanceof TypeError ? 'Холболт тасарлаа. Дахин оролдоно уу.' : error.message, true);

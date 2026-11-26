@@ -264,7 +264,7 @@ def payment(job_id):
             with lock:
                 write_job(job_id, job)
         if not job.get("checkout_url"):
-            job["checkout_url"] = wire.create_checkout(intent, f'{job_id}-{job["attempt"]}-checkout')
+            job["checkout_url"] = wire.create_checkout(intent, job_id, f'{job_id}-{job["attempt"]}-checkout')
             with lock:
                 write_job(job_id, job)
         return jsonify(paid=False, url=job["checkout_url"])

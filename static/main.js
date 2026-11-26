@@ -98,17 +98,22 @@ function updateJobButtons() {
   jobButtons.forEach(button => { button.disabled = jobBusy || paymentBusy; });
 }
 
-async function handlePayment(action) {
+async function handlePayment(action, attempts = 1) {
   if (!activeJob || paymentBusy) return;
   paymentBusy = true;
   checkout.disabled = verifyPayment.disabled = true;
   updateJobButtons();
   const id = activeJob;
   try {
-    const result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
+    let result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
     if (result.url) {
       location.assign(result.url);
       return;
+    }
+    for (let attempt = 1; attempt < attempts && !result.paid; attempt++) {
+      paymentNotice.textContent = 'Wire төлбөрийг баталгаажуулж байна…';
+      await pause(2000);
+      result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
     }
     await resumeJob(id);
     if (!result.paid) paymentNotice.textContent = 'Төлбөр хараахан баталгаажаагүй байна. Түр хүлээгээд дахин шалгана уу.';
@@ -131,7 +136,7 @@ if (previousJob) {
   jobBusy = true;
   updateJobButtons();
   waitForJob(previousJob).then(job => {
-    if (wireReturn === 'return' && job.payment_started && !job.paid) return handlePayment('verify-payment');
+    if (wireReturn === 'return' && job.payment_started && !job.paid) return handlePayment('verify-payment', 4);
   }).catch(error => announce(error.message, true)).finally(() => { jobBusy = false; updateJobButtons(); });
 }
 if (wireReturn) history.replaceState(null, '', '/' + location.hash);

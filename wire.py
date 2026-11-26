@@ -56,9 +56,9 @@ def verify(intent, intent_id, job_id):
     return intent.get("status")
 
 
-def create_intent(job_id, key):
+def create_intent(job_id, key, order_number=None):
     intent = call("payment_intents", {
-        "amount": PRICE, "currency": "MNT", "description": "Дуу Салгагч — бүтэн таталт",
+        "amount": PRICE, "currency": "MNT", "description": f"Захиалга {order_number}" if order_number is not None else "Дуу Салгагч — бүтэн таталт",
         "metadata": {"order_id": job_id},
         "allowed_operators": ["qpay"],
     }, key)

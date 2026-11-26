@@ -292,6 +292,11 @@ async function confirmPayment(id, queryProvider) {
     let job = await request('/api/jobs/' + id);
     if (!job.paid && queryProvider && job.payment_started) {
       const result = await request('/api/jobs/' + id + '/verify-payment', {method: 'POST'});
+      if (result.expired && activeJob === id) {
+        checkoutLink.hidden = true;
+        checkoutLink.removeAttribute('href');
+        paymentNotice.textContent = 'QR кодын хугацаа дууссан байна. QPay төлөх товчийг дарж шинэ код аваарай.';
+      }
       if (result.paid) job = await request('/api/jobs/' + id);
     }
     if (job.paid) finishPayment(job, id);
@@ -363,6 +368,7 @@ async function handlePayment(action) {
   updateJobButtons();
   const id = activeJob;
   const opening = action === 'checkout';
+  if (opening) checkoutLink.hidden = true;
   if (opening && (!paymentWindow || paymentWindow.closed)) {
     paymentWindow = window.open('about:blank', '_blank');
     if (paymentWindow) paymentWindow.opener = null;
@@ -385,7 +391,8 @@ async function handlePayment(action) {
       if (opening) paymentWindow?.close();
       finishPayment(await request('/api/jobs/' + id), id);
     } else {
-      paymentNotice.textContent = 'Төлбөрийг баталгаажуулж байна…';
+      if (opening) paymentWindow?.close();
+      paymentNotice.textContent = result.expired ? 'QR кодын хугацаа дууссан байна. Шинээр төлбөр нээнэ үү.' : 'Төлбөрийг баталгаажуулж байна…';
       void watchPayment(id, true);
     }
   } catch (error) {

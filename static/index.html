@@ -4,26 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#f7f8fc">
-<title>PANAMN — Дууны хоолой, ая салгах | YouTube-ээс MP3</title>
+<title>PANAMN.SITE — Дууны хоолой, ая салгах | YouTube-ээс MP3</title>
 <meta name="description" content="YouTube дээр дуугаа нэрээр хайж сонсоорой. MP3, MP4 файл эсвэл дэмжигдсэн YouTube холбоосоос хоолой, аяыг салгаж, 30 секунд үнэгүй сонсоно.">
 <meta name="google-site-verification" content="orbjr2eg-yc27qlCIsVCHSYfeDKZanFeh3wcFKWuG4E">
 <link rel="canonical" href="https://panamn.site/">
 <meta property="og:type" content="website">
-<meta property="og:site_name" content="PANAMN">
+<meta property="og:site_name" content="PANAMN.SITE">
 <meta property="og:url" content="https://panamn.site/">
-<meta property="og:title" content="PANAMN — Дууны хоолой, ая салгах | YouTube-ээс MP3">
+<meta property="og:title" content="PANAMN.SITE — Дууны хоолой, ая салгах | YouTube-ээс MP3">
 <meta property="og:description" content="YouTube дээр дуугаа нэрээр хайж сонсоорой. MP3, MP4 файл эсвэл дэмжигдсэн YouTube холбоосоос хоолой, аяыг салгаж, 30 секунд үнэгүй сонсоно.">
 <meta property="og:image" content="https://panamn.site/static/icon-512.png">
 <meta property="og:locale" content="mn_MN">
 <meta name="twitter:card" content="summary">
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=14">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=14">
-<link rel="stylesheet" href="/static/style.css?v=14">
-<script defer src="/static/main.js?v=14"></script>
+<link rel="icon" href="/static/icon-192.png?v=15">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=15">
+<link rel="stylesheet" href="/static/style.css?v=15">
+<script defer src="/static/main.js?v=15"></script>
 </head>
 <body>
-<header class="top"><a class="brand" href="/" aria-label="PANAMN нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
+<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
 <main>
   <section class="intro">
     <div class="hero-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -80,9 +80,10 @@
       <button id="convert-to-upload" type="button">Хоолой, хөгжмийг салгах →</button>
     </div>
     <div id="results" hidden>
+      <div class="preview-heading"><h2>Туршиж сонсох</h2><span>Эхний 30 секунд · Үнэгүй</span></div>
       <div class="tracks">
-        <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
-        <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download hidden>Instrumental татах · MP3</a></article>
+        <article><span class="track-note" aria-hidden="true">♫</span><h2>Дуучны хоолой</h2><audio controls preload="none" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
+        <article><span class="track-note" aria-hidden="true">♫</span><h2>Зөвхөн хөгжим</h2><audio controls preload="none" aria-label="Зөвхөн хөгжим"></audio><a download hidden>Instrumental татах · MP3</a></article>
       </div>
       <a id="download-all" class="download-all" download hidden>Хоёр MP3 татах · ZIP ↓</a>
       <div id="payment">
@@ -99,7 +100,16 @@
       </div>
     </div>
     <button id="new-job" class="source-export" type="button" hidden>Шинэ дуу</button>
-    <details id="ios-install" hidden><summary>iPhone-д апп суулгах</summary><p>Safari дээр хуваалцах цэсийг нээгээд “Add to Home Screen” сонгоно уу.</p></details>
+    <dialog id="install-dialog" aria-labelledby="install-title">
+      <img src="/static/icon-192.png" width="52" height="52" alt="">
+      <h2 id="install-title">PANAMN.SITE суулгах уу?</h2>
+      <p>Дуу салгагчаа утасныхаа нүүр дэлгэцээс шууд нээгээрэй.</p>
+      <p id="install-help" hidden>Safari дээр Хуваалцах товч → “Add to Home Screen” → “Add” дарна уу.</p>
+      <div class="install-actions">
+        <button id="install-confirm" type="button">Суулгах</button>
+        <button id="install-later" type="button">Дараа</button>
+      </div>
+    </dialog>
   </section>
 </main>
 </body>

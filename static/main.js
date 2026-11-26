@@ -262,7 +262,7 @@ async function waitForJob(id) {
       const time = Number.isInteger(seconds) ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '';
       jobTime.textContent = [value === null ? '' : `${value}%`, time].filter(Boolean).join(' · ');
       processing.hidden = false;
-      await pause(1800);
+      await pause(1000);
       job = await resumeJob(id);
     }
     return job;
@@ -275,27 +275,97 @@ function updateJobButtons() {
   jobButtons.forEach(button => { button.disabled = jobBusy || paymentBusy; });
 }
 
-async function handlePayment(action, attempts = 1) {
+let paymentWatch;
+let paymentWindow;
+const pendingPaymentKey = 'panamn:pending-payment';
+
+function rememberPayment(id) {
+  try {
+    if (id) sessionStorage.setItem(pendingPaymentKey, id);
+    else sessionStorage.removeItem(pendingPaymentKey);
+  } catch {}
+}
+
+function pendingPayment() {
+  try { return sessionStorage.getItem(pendingPaymentKey); } catch { return null; }
+}
+
+function finishPayment(job, id) {
+  if (activeJob !== id) return;
+  showJob(job, id);
+  rememberPayment(null);
+  results.scrollIntoView({block: 'nearest'});
+  const key = 'panamn:download:' + id;
+  const download = () => {
+    try {
+      if (localStorage.getItem(key)) return;
+      localStorage.setItem(key, '1');
+    } catch {}
+    if (activeJob === id) downloadAll.click();
+  };
+  if (navigator.locks) navigator.locks.request(key, download).catch(download);
+  else download();
+}
+
+async function watchPayment(id, now = false) {
+  if (paymentWatch === id) return;
+  paymentWatch = id;
+  const end = Date.now() + 10 * 60 * 1000;
+  let count = 0;
+  try {
+    if (!now) await pause(1500);
+    while (activeJob === id && Date.now() < end) {
+      try {
+        let job = await request('/api/jobs/' + id);
+        if (job.paid || (job.payment_started && count++ % 2 === 0 &&
+            (await request('/api/jobs/' + id + '/verify-payment', {method: 'POST'})).paid)) {
+          job = job.paid ? job : await request('/api/jobs/' + id);
+          finishPayment(job, id);
+          return;
+        }
+      } catch {
+        // Webhook or provider verification may still succeed on the next poll.
+      }
+      await pause(3000);
+    }
+    if (activeJob === id) paymentNotice.textContent = 'Төлбөр хараахан баталгаажаагүй байна. Төлбөр шалгах товчийг дарж дахин шалгана уу.';
+  } finally {
+    if (paymentWatch === id) paymentWatch = null;
+  }
+}
+
+async function handlePayment(action) {
   if (!activeJob || paymentBusy) return;
   paymentBusy = true;
   checkout.disabled = verifyPayment.disabled = true;
   updateJobButtons();
   const id = activeJob;
+  const opening = action === 'checkout';
+  if (opening && (!paymentWindow || paymentWindow.closed)) {
+    paymentWindow = window.open('about:blank', '_blank');
+    if (paymentWindow) paymentWindow.opener = null;
+  }
   try {
-    let result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
+    const result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
     if (result.url) {
-      location.assign(result.url);
-      return;
+      rememberPayment(id);
+      if (!paymentWindow || paymentWindow.closed) {
+        location.assign(result.url);
+        return;
+      }
+      paymentWindow.location = result.url;
+      verifyPayment.hidden = false;
+      paymentNotice.textContent = 'QPay шинэ цонхонд нээгдлээ. Төлбөр төлсний дараа таталт автоматаар эхэлнэ.';
+      void watchPayment(id);
+    } else if (result.paid) {
+      if (opening) paymentWindow?.close();
+      finishPayment(await request('/api/jobs/' + id), id);
+    } else {
+      paymentNotice.textContent = 'Төлбөрийг баталгаажуулж байна…';
+      void watchPayment(id, true);
     }
-    for (let attempt = 1; attempt < attempts && !result.paid; attempt++) {
-      paymentNotice.textContent = 'QPay төлбөрийг баталгаажуулж байна…';
-      await pause(2000);
-      result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
-    }
-    await resumeJob(id);
-    if (result.paid) downloadAll.click();
-    else paymentNotice.textContent = 'Төлбөр хараахан баталгаажаагүй байна. Түр хүлээгээд дахин шалгана уу.';
   } catch (error) {
+    if (opening) paymentWindow?.close();
     paymentNotice.textContent = error.message;
   } finally {
     paymentBusy = false;
@@ -307,7 +377,16 @@ async function handlePayment(action, attempts = 1) {
 checkout.addEventListener('click', () => handlePayment('checkout'));
 verifyPayment.addEventListener('click', () => handlePayment('verify-payment'));
 
+for (const audio of results.querySelectorAll('audio')) {
+  audio.addEventListener('play', () => {
+    for (const other of results.querySelectorAll('audio')) {
+      if (other !== audio) other.pause();
+    }
+  });
+}
+
 function clearJob() {
+  rememberPayment(null);
   activeJob = null;
   form.reset();
   youtube.reset();
@@ -349,19 +428,32 @@ for (const link of [convertedDownload, downloadAll]) {
 }
 
 window.addEventListener('pageshow', event => {
-  if (event.persisted && !jobBusy && !paymentBusy) clearJob();
+  if (event.persisted && activeJob && pendingPayment() === activeJob) void watchPayment(activeJob, true);
+  else if (event.persisted && !jobBusy && !paymentBusy) clearJob();
 });
 
 const wireReturn = new URLSearchParams(location.search).get('wire');
 const linkedJob = new URLSearchParams(location.hash.slice(1)).get('job');
-if (['return', 'cancel'].includes(wireReturn) && /^[a-f0-9]{32}$/.test(linkedJob || '')) {
+const returning = ['return', 'cancel'].includes(wireReturn);
+const restoredJob = returning ? linkedJob : pendingPayment();
+if (/^[a-f0-9]{32}$/.test(restoredJob || '')) {
   jobBusy = true;
   updateJobButtons();
-  waitForJob(linkedJob).then(job => {
-    if (wireReturn !== 'return' || !job.payment_started) return;
-    if (job.paid) downloadAll.click();
-    else return handlePayment('verify-payment', 8);
-  }).catch(error => announce(error.message, true)).finally(() => {
+  waitForJob(restoredJob).then(job => {
+    if (wireReturn === 'cancel' || !job.payment_started) {
+      rememberPayment(null);
+      return;
+    }
+    rememberPayment(restoredJob);
+    if (job.paid) finishPayment(job, restoredJob);
+    else {
+      paymentNotice.textContent = 'Төлбөрийг баталгаажуулж байна…';
+      void watchPayment(restoredJob, true);
+    }
+  }).catch(error => {
+    rememberPayment(null);
+    announce(error.message, true);
+  }).finally(() => {
     history.replaceState(null, '', '/');
     jobBusy = false;
     updateJobButtons();
@@ -404,33 +496,56 @@ form.addEventListener('submit', submitJob);
 youtube.addEventListener('submit', submitJob);
 
 const install = document.querySelector('#install');
+const installDialog = document.querySelector('#install-dialog');
+const installHelp = document.querySelector('#install-help');
+const installConfirm = document.querySelector('#install-confirm');
+const appleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const mobile = appleMobile || /Android/i.test(navigator.userAgent);
+const installed = () => navigator.standalone || matchMedia('(display-mode: standalone)').matches;
 let installPrompt;
+let installOffered = false;
+
+function offerInstall() {
+  if (installed() || (!installPrompt && !appleMobile)) return;
+  install.hidden = false;
+  if (!mobile || installOffered || wireReturn || linkedJob) return;
+  installOffered = true;
+  try {
+    if (localStorage.getItem('panamn:install-offered')) return;
+    localStorage.setItem('panamn:install-offered', '1');
+  } catch {}
+  installDialog.showModal();
+}
 
 window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
   installPrompt = event;
-  install.hidden = false;
+  offerInstall();
 });
 
-install.addEventListener('click', async () => {
-  if (!installPrompt) return;
+install.addEventListener('click', () => {
+  if (!installDialog.open) installDialog.showModal();
+});
+document.querySelector('#install-later').addEventListener('click', () => installDialog.close());
+installConfirm.addEventListener('click', async () => {
+  if (!installPrompt) {
+    installHelp.hidden = false;
+    installConfirm.hidden = true;
+    return;
+  }
   const prompt = installPrompt;
   installPrompt = null;
-  install.hidden = true;
-  await prompt.prompt();
+  install.hidden = !appleMobile;
+  installDialog.close();
+  try { await prompt.prompt(); } catch {}
 });
-
 window.addEventListener('appinstalled', () => {
   installPrompt = null;
   install.hidden = true;
-  document.querySelector('#ios-install').hidden = true;
+  if (installDialog.open) installDialog.close();
 });
-
-const appleMobile = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-if (appleMobile && !navigator.standalone && !matchMedia('(display-mode: standalone)').matches) {
-  document.querySelector('#ios-install').hidden = false;
-}
+offerInstall();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(console.error);
 }

@@ -228,7 +228,7 @@ def process_audio(job_id, folder, source, video_id, operation):
             if not stem.stat().st_size:
                 raise ValueError("Empty output stem")
             run(["ffmpeg", "-nostdin", "-v", "error", "-i", str(stem), "-t", "30",
-                 "-c:a", "libmp3lame", "-b:a", "128k", str(folder / f"preview-{name}.mp3")], 30)
+                 "-c:a", "copy", str(folder / f"preview-{name}.mp3")], 30)
         track.unlink()
         with lock:
             write_job(job_id, {"status": "ready", "expires": time.time() + RETENTION})

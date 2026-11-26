@@ -1,7 +1,7 @@
-const SHELL = 'duu-salgagch-shell-v14';
+const SHELL = 'duu-salgagch-shell-v15';
 const OFFLINE = '/static/offline.html';
 const ASSETS = [
-  OFFLINE, '/static/style.css?v=14', '/static/main.js?v=14', '/static/manifest.webmanifest',
+  OFFLINE, '/static/style.css?v=15', '/static/main.js?v=15', '/static/manifest.webmanifest',
   '/static/icon-192.png', '/static/icon-512.png'
 ];
 
@@ -23,6 +23,6 @@ self.addEventListener('fetch', event => {
   if (request.mode === 'navigate' && url.pathname === '/') {
     event.respondWith(fetch(request).catch(() => caches.match(OFFLINE)));
   } else if (ASSETS.includes(url.pathname + url.search)) {
-    event.respondWith(fetch(request).catch(() => caches.match(url.pathname)));
+    event.respondWith(fetch(request).catch(() => caches.match(request)));
   }
 });

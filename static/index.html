@@ -7,10 +7,10 @@
 <meta name="description" content="YouTube холбоос, MP3 эсвэл MP4 файлаас дуучны хоолой, хөгжмийг салга.">
 <title>PANAMN — Дуу салгагч</title>
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=11">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=11">
-<link rel="stylesheet" href="/static/style.css?v=11">
-<script defer src="/static/main.js?v=11"></script>
+<link rel="icon" href="/static/icon-192.png?v=12">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=12">
+<link rel="stylesheet" href="/static/style.css?v=12">
+<script defer src="/static/main.js?v=12"></script>
 </head>
 <body>
 <header class="top"><a class="brand" href="/" aria-label="PANAMN нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
@@ -25,8 +25,19 @@
       <button type="button" id="youtube-mode" aria-controls="youtube" aria-pressed="true"><span aria-hidden="true">▶</span> YouTube линк</button>
       <button type="button" id="upload-mode" aria-controls="upload" aria-pressed="false"><span aria-hidden="true">↑</span> Хоолой салгах</button>
     </div>
+    <div id="song-search">
+      <form id="search-form">
+        <label for="song-query">Дуу эсвэл дуучны нэрээр хайх</label>
+        <div class="search-row">
+          <input id="song-query" type="search" minlength="2" maxlength="120" placeholder="Жишээ нь, XUG Чинийх" required>
+          <button type="submit">Хайх</button>
+        </div>
+      </form>
+      <p id="search-status" role="status" hidden></p>
+      <ul id="search-results" aria-label="YouTube хайлтын үр дүн" hidden></ul>
+    </div>
     <form id="youtube">
-      <label for="link">YouTube холбоос</label>
+      <label for="link">Эсвэл YouTube холбоос оруулах</label>
       <input id="link" name="youtube_url" type="text" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="YouTube холбоосоо хуулж оруулна уу">
       <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
       <button class="primary" type="submit" name="operation" value="separate">YouTube-ээс шууд салгах <span aria-hidden="true">→</span></button>

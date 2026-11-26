@@ -30,6 +30,7 @@ STEMS = {"vocals": "vocals", "instrumental": "no_vocals"}
 lock = Lock()
 payment_lock = Lock()
 slots = BoundedSemaphore(1)
+search_slots = BoundedSemaphore(2)
 WORKER_ID = uuid4().hex
 ACTIVE_STATUSES = {"downloading", "processing"}
 
@@ -269,6 +270,46 @@ def process_audio(job_id, folder, source, video_id, operation):
             write_job(job_id, {"status": "failed", "error": message, "expires": time.time() + 3600})
     finally:
         slots.release()
+
+
+@app.get("/api/youtube/search")
+def search_youtube():
+    query = " ".join(request.args.get("q", "").split())
+    if not 2 <= len(query) <= 120:
+        return jsonify(error="Дуу эсвэл дуучны нэрээс 2–120 тэмдэгт оруулна уу."), 400
+    if not search_slots.acquire(blocking=False):
+        return jsonify(error="Хайлт түр завгүй байна. Дахин оролдоно уу."), 429
+    try:
+        completed = subprocess.run([
+            sys.executable, "-m", "yt_dlp", "--ignore-config", "--flat-playlist",
+            "--dump-single-json", "--socket-timeout", "8", "--extractor-retries", "0",
+            "--", f"ytsearch10:{query}",
+        ], check=True, timeout=18, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+        results = []
+        for item in json.loads(completed.stdout).get("entries", []):
+            if not isinstance(item, dict):
+                continue
+            video_id = item.get("id")
+            duration = item.get("duration")
+            if not isinstance(video_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+                continue
+            if item.get("live_status") in {"is_live", "is_upcoming"} or (
+                isinstance(duration, (int, float)) and duration > 600
+            ):
+                continue
+            results.append({
+                "id": video_id,
+                "title": str(item.get("title") or video_id)[:200],
+                "channel": str(item.get("channel") or item.get("uploader") or "")[:120],
+                "duration": duration if isinstance(duration, (int, float)) else None,
+            })
+            if len(results) == 6:
+                break
+        return jsonify(results=results)
+    except (subprocess.SubprocessError, ValueError):
+        return jsonify(error="YouTube хайлт түр ажиллахгүй байна. Линкээ шууд оруулж болно."), 502
+    finally:
+        search_slots.release()
 
 
 @app.post("/api/jobs")

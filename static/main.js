@@ -2,6 +2,13 @@ const form = document.querySelector('#upload');
 const youtube = document.querySelector('#youtube');
 const jobButtons = [...youtube.querySelectorAll('button[type=submit]'), form.querySelector('button')];
 const audio = document.querySelector('#audio');
+const searchPanel = document.querySelector('#song-search');
+const searchForm = document.querySelector('#search-form');
+const searchInput = document.querySelector('#song-query');
+const searchStatus = document.querySelector('#search-status');
+const searchResults = document.querySelector('#search-results');
+const youtubeLink = document.querySelector('#link');
+let searchRequest;
 const filename = document.querySelector('#filename');
 const drop = document.querySelector('#drop');
 let jobBusy = false;
@@ -29,6 +36,7 @@ const uploadFallback = document.querySelector('#upload-fallback');
 function selectSource(fromFile, focus = false) {
   form.hidden = !fromFile;
   youtube.hidden = fromFile;
+  searchPanel.hidden = fromFile;
   youtubeMode.setAttribute('aria-pressed', String(!fromFile));
   uploadMode.setAttribute('aria-pressed', String(fromFile));
   uploadFallback.hidden = true;
@@ -93,6 +101,51 @@ async function request(url, config) {
   if (!response.ok) throw new Error(body.error || 'Серверийн алдаа гарлаа. Дахин оролдоно уу.');
   return body;
 }
+
+function announceSearch(message) {
+  searchStatus.textContent = message;
+  searchStatus.hidden = !message;
+}
+
+searchForm.addEventListener('submit', async event => {
+  event.preventDefault();
+  searchRequest?.abort();
+  const controller = new AbortController();
+  searchRequest = controller;
+  searchResults.hidden = true;
+  searchResults.replaceChildren();
+  announceSearch('YouTube-ээс хайж байна…');
+  try {
+    const {results} = await request('/api/youtube/search?' + new URLSearchParams({q: searchInput.value}), {
+      signal: controller.signal,
+    });
+    for (const result of results) {
+      const row = document.createElement('li');
+      const button = document.createElement('button');
+      const title = document.createElement('strong');
+      const details = document.createElement('small');
+      button.type = 'button';
+      title.textContent = result.title;
+      const seconds = Math.floor(result.duration);
+      const duration = Number.isFinite(result.duration)
+        ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '';
+      details.textContent = [result.channel, duration].filter(Boolean).join(' · ');
+      button.append(title, details);
+      button.addEventListener('click', () => {
+        youtubeLink.value = 'https://www.youtube.com/watch?v=' + result.id;
+        announceSearch('Сонгосон: ' + result.title);
+        searchResults.hidden = true;
+        youtube.querySelector('button[type=submit]').focus();
+      });
+      row.append(button);
+      searchResults.append(row);
+    }
+    searchResults.hidden = !results.length;
+    announceSearch(results.length ? 'Бичлэгээ сонгоно уу.' : '10 минут хүртэлх тохирох бичлэг олдсонгүй.');
+  } catch (error) {
+    if (error.name !== 'AbortError') announceSearch(error.message);
+  }
+});
 
 function showJob(job, id) {
   activeJob = id;
@@ -213,6 +266,11 @@ function clearJob() {
   activeJob = null;
   form.reset();
   youtube.reset();
+  searchRequest?.abort();
+  searchForm.reset();
+  searchResults.replaceChildren();
+  searchResults.hidden = true;
+  announceSearch('');
   filename.textContent = idleLabel;
   selectSource(false);
   announce('');

@@ -3,47 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#12101a">
-<title>Дуу Салгагч</title>
+<meta name="theme-color" content="#f7f8fc">
+<meta name="description" content="YouTube холбоос, MP3 эсвэл MP4 файлаас дуучны хоолой, хөгжмийг салга.">
+<title>PANAMN — Дуу салгагч</title>
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-<link rel="stylesheet" href="/static/style.css">
-<script defer src="/static/main.js"></script>
+<link rel="icon" href="/static/icon-192.png?v=4">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=4">
+<link rel="stylesheet" href="/static/style.css?v=4">
+<script defer src="/static/main.js?v=4"></script>
 </head>
 <body>
-<header><span class="mark" aria-hidden="true">▂▆█▅▂</span> Дуу Салгагч <button id="install" type="button" hidden>Апп суулгах</button></header>
+<header class="top"><a class="brand" href="/" aria-label="PANAMN нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
 <main>
   <section class="intro">
-    <div class="wave" aria-hidden="true"></div>
-    <h1>Дуунаас хоолой,<br><em>хөгжмийг салга.</em></h1>
-    <p>YouTube линкээ оруулаад дуучны хоолой, цэвэр хөгжмийг тус тусад нь MP3 болгоорой.</p>
+    <div class="hero-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <h1>Дуучны хоолой,<br><em>хөгжмийг салга.</em></h1>
+    <p>YouTube линк, MP3 эсвэл MP4 файлаас хоолой болон зөвхөн хөгжмийг тус тусад нь гаргана.</p>
   </section>
   <section class="panel" aria-label="Дуу боловсруулах">
+    <div class="sources" role="group" aria-label="Дууны эх үүсвэр">
+      <button type="button" id="youtube-mode" aria-controls="youtube" aria-pressed="true"><span aria-hidden="true">▶</span> YouTube линк</button>
+      <button type="button" id="upload-mode" aria-controls="upload" aria-pressed="false"><span aria-hidden="true">↑</span> Файл оруулах</button>
+    </div>
     <form id="youtube">
       <label for="link">YouTube холбоос</label>
-      <div class="urlrow"><input id="link" name="youtube_url" type="url" inputmode="url" maxlength="2048" required placeholder="https://youtu.be/…"></div>
+      <input id="link" name="youtube_url" type="url" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="https://youtu.be/…">
       <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
-      <label class="rights"><input type="checkbox" name="rights" value="yes" required> Би энэ дууг боловсруулах эрхтэй.</label>
-      <button type="submit">Хоолой, хөгжмийг салгах</button>
+      <button class="primary" type="submit">Дуу салгах <span aria-hidden="true">→</span></button>
     </form>
-    <details>
-      <summary>Эсвэл аудио файл оруулах</summary>
-      <form id="upload">
+    <form id="upload" hidden>
       <label id="drop" class="drop">
-        <input type="file" name="audio" id="audio" accept=".mp3,.wav,.m4a,.flac,.ogg,.mp4" required>
-        <span class="music" aria-hidden="true">♫</span>
+        <input type="file" name="audio" id="audio" accept=".mp3,.mp4,.wav,.m4a,.flac,.ogg" required>
+        <span class="upload-icon" aria-hidden="true">↑</span>
         <strong id="filename">Файл сонгох эсвэл чирж оруулах</strong>
-        <small>MP3, WAV, M4A, FLAC, OGG, MP4 · 50 МБ · 10 минут хүртэл</small>
+        <small>MP3, MP4, WAV, M4A, FLAC, OGG · 50 МБ · 10 минут хүртэл</small>
       </label>
-      <label class="rights"><input type="checkbox" name="rights" value="yes" required> Би энэ файлыг боловсруулах эрхтэй.</label>
-      <button id="submit" type="submit">Хоолой, хөгжмийг салгах</button>
-      </form>
-    </details>
+      <button class="primary" type="submit">Дуу салгах <span aria-hidden="true">→</span></button>
+    </form>
     <p id="status" role="status" hidden></p>
+    <button id="upload-fallback" type="button" hidden>MP3 / MP4 файл оруулах →</button>
     <div id="results" hidden>
-      <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
-      <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download hidden>Бүтэн хөгжим татах · MP3</a></article>
+      <div class="tracks">
+        <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
+        <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download hidden>Instrumental татах · MP3</a></article>
+      </div>
       <div id="payment">
         <strong>Бүтэн хоолой + хөгжим · <span id="price"></span>₮</strong>
         <div class="payment-actions">

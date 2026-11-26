@@ -94,7 +94,7 @@ def youtube_video_id(link):
     except ValueError:
         return None
     if url.hostname == "youtu.be":
-        video_id = url.path.removeprefix("/")
+        video_id = url.path.strip("/")
     elif url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"}:
         if url.path == "/watch":
             video_id = parse_qs(url.query).get("v", [""])[0]
@@ -106,18 +106,33 @@ def youtube_video_id(link):
     return video_id if re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) else None
 
 
+class YouTubeImportError(Exception):
+    pass
+
+
 def download_youtube(video_id, folder):
-    run([sys.executable, "-m", "yt_dlp", "--ignore-config", "--no-playlist",
+    completed = subprocess.run([sys.executable, "-m", "yt_dlp", "--ignore-config", "--no-playlist",
          "--js-runtimes", "node", "--socket-timeout", "15", "--retries", "1",
          "--match-filter", "!is_live & duration <= 600",
-         "--format", "bestaudio[protocol=https][ext=m4a]/bestaudio[protocol=https][ext=webm]",
+         "--format", "bestaudio[ext=m4a]/bestaudio[ext=webm]/best[protocol=https][ext=mp4][height<=360]",
          "--max-filesize", "50M", "--output", str(folder / "youtube.%(ext)s"),
-         "--", f"https://www.youtube.com/watch?v={video_id}"], 150)
-    for ext in ("m4a", "webm"):
+         "--", f"https://www.youtube.com/watch?v={video_id}"], timeout=150,
+        stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, text=True, errors="replace",
+        stdin=subprocess.DEVNULL,
+    )
+    if completed.returncode:
+        detail = completed.stderr.lower()
+        logging.warning("YouTube import failed for %s: %s", video_id, completed.stderr[-1200:])
+        if "not a bot" in detail or "not a robot" in detail:
+            raise YouTubeImportError("YouTube серверээс аудио авахыг түр хязгаарлалаа. MP3 эсвэл MP4 файлаа оруулж үргэлжлүүлээрэй.")
+        if any(reason in detail for reason in ("unavailable", "private video", "age-restricted")):
+            raise YouTubeImportError("Энэ бичлэгийг YouTube-ээс авах боломжгүй байна. Өөр нээлттэй линк эсвэл MP3/MP4 файл оруулна уу.")
+        raise YouTubeImportError("YouTube-ээс аудио татаж чадсангүй. Өөр линк эсвэл MP3/MP4 файл оруулна уу.")
+    for ext in ("m4a", "webm", "mp4"):
         source = folder / f"youtube.{ext}"
         if source.is_file() and 0 < source.stat().st_size <= LIMIT:
             return source
-    raise ValueError("No supported audio downloaded")
+    raise YouTubeImportError("Бичлэг 10 минут эсвэл 50 МБ-ын хязгаарт багтаагүй, эсвэл татах боломжтой аудио олдсонгүй. MP3/MP4 файл оруулж үзээрэй.")
 
 
 def separate(job_id, folder, source, video_id):
@@ -128,7 +143,11 @@ def separate(job_id, folder, source, video_id):
                 "YouTube-ээс аудио авч чадсангүй. Нийтэд нээлттэй, 10 минут хүртэлх "
                 "бичлэгийн холбоос эсвэл аудио файл оруулна уу."
             )
-            source = download_youtube(video_id, folder)
+            try:
+                source = download_youtube(video_id, folder)
+            except YouTubeImportError as error:
+                message = str(error)
+                raise
             with lock:
                 write_job(job_id, {"status": "processing", "expires": time.time() + 3600})
             message = "YouTube-ээс авсан аудиог уншиж чадсангүй."
@@ -172,8 +191,8 @@ def submit():
     video_id = youtube_video_id(link) if link else None
     if link and (not video_id or upload):
         return jsonify(error="YouTube бичлэгийн зөв холбоос оруулна уу."), 400
-    if (not video_id and ext not in FORMATS) or request.form.get("rights") != "yes":
-        return jsonify(error="Зөвшөөрөлтэй, аудио файл эсвэл YouTube холбоос оруулна уу."), 400
+    if not video_id and ext not in FORMATS:
+        return jsonify(error="MP3, MP4, WAV, M4A, FLAC эсвэл OGG файл оруулна уу."), 400
     if not slots.acquire(blocking=False):
         return jsonify(error="Сервер дуу боловсруулж байна. Түр хүлээгээд дахин оролдоно уу."), 429
     job_id = uuid4().hex

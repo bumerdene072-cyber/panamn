@@ -18,10 +18,51 @@ let paymentBusy = false;
 const idleLabel = filename.textContent;
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 
+const youtubeMode = document.querySelector('#youtube-mode');
+const uploadMode = document.querySelector('#upload-mode');
+const uploadFallback = document.querySelector('#upload-fallback');
+
+function selectSource(fromFile, focus = false) {
+  form.hidden = !fromFile;
+  youtube.hidden = fromFile;
+  youtubeMode.setAttribute('aria-pressed', String(!fromFile));
+  uploadMode.setAttribute('aria-pressed', String(fromFile));
+  uploadFallback.hidden = true;
+  if (focus) (fromFile ? audio : youtube.querySelector('input')).focus();
+}
+
+youtubeMode.addEventListener('click', () => selectSource(false));
+uploadMode.addEventListener('click', () => selectSource(true));
+uploadFallback.addEventListener('click', () => selectSource(true, true));
+
+const theme = document.querySelector('#theme');
+const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+const themeKey = 'panamn-theme';
+
+function applyTheme(dark) {
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  document.querySelector('meta[name=theme-color]').content = dark ? '#100e17' : '#f7f8fc';
+  theme.setAttribute('aria-label', dark ? 'Гэрэлтэй горим' : 'Харанхуй горим');
+  theme.setAttribute('aria-pressed', String(dark));
+  theme.querySelector('span').textContent = dark ? '☀' : '☾';
+}
+
+const savedTheme = localStorage.getItem(themeKey);
+applyTheme(savedTheme ? savedTheme === 'dark' : systemTheme.matches);
+systemTheme.addEventListener('change', event => {
+  if (!localStorage.getItem(themeKey)) applyTheme(event.matches);
+});
+theme.addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme !== 'dark';
+  localStorage.setItem(themeKey, dark ? 'dark' : 'light');
+  applyTheme(dark);
+});
+
 function announce(message, error = false) {
   status.textContent = message;
   status.hidden = !message;
   status.toggleAttribute('data-error', error);
+  uploadFallback.hidden = !error || youtube.hidden;
 }
 
 audio.addEventListener('change', () => {

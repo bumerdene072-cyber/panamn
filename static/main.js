@@ -7,6 +7,8 @@ const drop = document.querySelector('#drop');
 let jobBusy = false;
 const status = document.querySelector('#status');
 const results = document.querySelector('#results');
+const converted = document.querySelector('#converted');
+const convertedDownload = document.querySelector('#converted-download');
 const checkout = document.querySelector('#checkout');
 const verifyPayment = document.querySelector('#verify-payment');
 const paymentNotice = document.querySelector('#payment-notice');
@@ -35,6 +37,7 @@ function selectSource(fromFile, focus = false) {
 youtubeMode.addEventListener('click', () => selectSource(false));
 uploadMode.addEventListener('click', () => selectSource(true));
 uploadFallback.addEventListener('click', () => selectSource(true, true));
+document.querySelector('#convert-to-upload').addEventListener('click', () => selectSource(true, true));
 
 const theme = document.querySelector('#theme');
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
@@ -94,6 +97,14 @@ function showJob(job, id) {
   activeJob = id;
   history.replaceState(null, '', '/#job=' + id);
   const url = '/api/jobs/' + id;
+  if (job.operation === 'convert') {
+    results.hidden = true;
+    convertedDownload.href = url + '/mp3';
+    converted.hidden = false;
+    announce('MP3 бэлэн боллоо.');
+    return;
+  }
+  converted.hidden = true;
   results.querySelectorAll('article').forEach((card, i) => {
     const stem = ['vocals', 'instrumental'][i];
     const preview = url + '/preview/' + stem;
@@ -228,6 +239,7 @@ async function submitJob(event) {
   jobBusy = true;
   updateJobButtons();
   results.hidden = true;
+  converted.hidden = true;
   results.querySelectorAll('audio').forEach(player => player.pause());
   announce(fromFile ? 'Файл илгээж байна…' : 'Холбоос шалгаж байна…');
   try {

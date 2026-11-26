@@ -25,6 +25,7 @@ PAID_RETENTION = 7 * 24 * 3600
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/tmp/duu-data")).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
 FORMATS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".mp4"}
+MEDIA_FORMATS = "mp3,wav,flac,ogg,mov,mp4,m4a,3gp,3g2,mj2,matroska,webm"
 STEMS = {"vocals": "vocals", "instrumental": "no_vocals"}
 lock = Lock()
 payment_lock = Lock()
@@ -193,7 +194,7 @@ def run_demucs(job_id, folder, track):
     update_processing(job_id, phase="encoding", progress=None)
 
 
-def separate(job_id, folder, source, video_id):
+def process_audio(job_id, folder, source, video_id, operation):
     message = "Файлын дууг уншиж чадсангүй. Өөр файл оруулж үзээрэй."
     try:
         if video_id:
@@ -208,9 +209,21 @@ def separate(job_id, folder, source, video_id):
                 raise
             update_processing(job_id, status="processing", phase="preparing")
             message = "YouTube-ээс авсан аудиог уншиж чадсангүй."
+        if operation == "convert":
+            update_processing(job_id, phase="encoding")
+            message = "Аудиог MP3 болгож чадсангүй. Өөр линк оруулж үзээрэй."
+            run(["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file",
+                 "-format_whitelist", MEDIA_FORMATS, "-i", str(source), "-map", "0:a:0",
+                 "-vn", "-t", "600", "-c:a", "libmp3lame", "-b:a", "192k",
+                 str(folder / "source.mp3")], 90)
+            source.unlink()
+            with lock:
+                write_job(job_id, {"status": "ready", "operation": "convert",
+                                   "expires": time.time() + RETENTION})
+            return
         track = folder / "track.wav"
         run(["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file", "-format_whitelist",
-             "mp3,wav,flac,ogg,mov,mp4,m4a,3gp,3g2,mj2,matroska,webm", "-i", str(source), "-map",
+             MEDIA_FORMATS, "-i", str(source), "-map",
              "0:a:0", "-vn", "-ac", "2", "-ar", "44100", "-t", "601", str(track)], 90)
         source.unlink()
         # Stereo 16-bit PCM at 44.1 kHz, with room for the WAV header.
@@ -244,6 +257,9 @@ def submit():
     ext = Path(upload.filename or "").suffix.lower() if upload else ""
     link = request.form.get("youtube_url", "").strip()
     video_id = youtube_video_id(link) if link else None
+    operation = request.form.get("operation", "separate")
+    if operation not in {"convert", "separate"} or (operation == "convert" and not video_id):
+        return jsonify(error="YouTube бичлэгийн зөв холбоос оруулна уу."), 400
     if link and (not video_id or upload):
         return jsonify(error="YouTube бичлэгийн зөв холбоос оруулна уу."), 400
     if not video_id and ext not in FORMATS:
@@ -279,9 +295,10 @@ def submit():
                 "phase": "downloading" if video_id else "preparing",
                 "started": time.time(),
                 "worker": WORKER_ID,
+                "operation": operation,
                 "expires": time.time() + 3600,
             })
-        Thread(target=separate, args=(job_id, folder, source, video_id), daemon=True).start()
+        Thread(target=process_audio, args=(job_id, folder, source, video_id, operation), daemon=True).start()
         started = True
         return jsonify(id=job_id), 202
     finally:
@@ -299,6 +316,7 @@ def status(job_id):
         if job["status"] in ACTIVE_STATUSES and job.get("worker") != WORKER_ID:
             return jsonify(status="failed", error="Сервер дахин ассан тул энэ оролдлого тасарлаа. Дуугаа дахин оруулна уу.")
         return jsonify(status=job["status"], error=job.get("error"),
+                       operation=job.get("operation", "separate"),
                        phase=job.get("phase"), progress=job.get("progress"),
                        elapsed=int(max(0, time.time() - job["started"])) if "started" in job else None,
                        paid=job.get("paid", False), payment_available=wire.configured(),
@@ -322,7 +340,7 @@ def payment(job_id):
     try:
         with lock:
             job = read_job(job_id)
-        if not job or job["status"] != "ready":
+        if not job or job["status"] != "ready" or job.get("operation") == "convert":
             return jsonify(error="Захиалга олдсонгүй."), 404
         if job.get("paid"):
             return jsonify(paid=True)
@@ -399,11 +417,21 @@ def wire_webhook():
         payment_lock.release()
 
 
+@app.get("/api/jobs/<job_id>/mp3")
+def converted_mp3(job_id):
+    with lock:
+        job = read_job(job_id)
+        if not job or job["status"] != "ready" or job.get("operation") != "convert":
+            return jsonify(error="MP3 файл олдсонгүй."), 404
+        return send_file(DATA_DIR / job_id / "source.mp3", mimetype="audio/mpeg",
+                         as_attachment=True, download_name="PANAMN.mp3", max_age=0)
+
+
 @app.get("/api/jobs/<job_id>/download")
 def download_bundle(job_id):
     with lock:
         job = read_job(job_id)
-        if not job or job["status"] != "ready":
+        if not job or job["status"] != "ready" or job.get("operation") == "convert":
             return jsonify(error="Аудио файл олдсонгүй."), 404
         if not job.get("paid"):
             return jsonify(error="Төлбөрөө баталгаажуулна уу."), 402
@@ -428,7 +456,7 @@ def download_bundle(job_id):
 def result(job_id, variant, stem):
     with lock:
         job = read_job(job_id)
-        if not job or job["status"] != "ready" or stem not in STEMS or variant not in ("preview", "full"):
+        if not job or job["status"] != "ready" or job.get("operation") == "convert" or stem not in STEMS or variant not in ("preview", "full"):
             return jsonify(error="Аудио файл олдсонгүй."), 404
         if variant == "full" and not job.get("paid"):
             return jsonify(error="Бүтэн MP3 татахын тулд төлбөрөө баталгаажуулна уу."), 402

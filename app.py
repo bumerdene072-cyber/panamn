@@ -10,7 +10,7 @@ import tempfile
 import time
 from threading import BoundedSemaphore, Lock, Thread
 from uuid import UUID, uuid4
-from zipfile import ZipFile
+from zipfile import BadZipFile, ZipFile
 
 from flask import Flask, jsonify, request, send_file
 
@@ -165,9 +165,59 @@ def run_demucs(job_id, folder, track):
     update_processing(job_id, phase="encoding", progress=None)
 
 
+# Version the key when the separator model or output settings change.
+STEM_CACHE_SUFFIX = ".htdemucs-v1.zip"
+STEM_CACHE_FILES = tuple(
+    path for name in STEMS.values()
+    for path in (f"htdemucs/track/{name}.mp3", f"preview-{name}.mp3")
+)
+
+
+def restore_stems(video_id, folder):
+    cached = read_youtube_cache(video_id, folder, (STEM_CACHE_SUFFIX,))
+    if cached is None:
+        return False
+    try:
+        with ZipFile(cached) as archive:
+            if sorted(archive.namelist()) != sorted(STEM_CACHE_FILES):
+                raise BadZipFile("Unexpected stem cache contents")
+            if not 0 < sum(item.file_size for item in archive.infolist()) <= LIMIT:
+                raise BadZipFile("Unexpected stem cache size")
+            for name in STEM_CACHE_FILES:
+                path = folder / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with archive.open(name) as source, path.open("wb") as output:
+                    shutil.copyfileobj(source, output)
+        return True
+    except (OSError, BadZipFile):
+        logging.warning("Could not restore cached stems for %s", video_id)
+        for name in STEM_CACHE_FILES:
+            (folder / name).unlink(missing_ok=True)
+        return False
+    finally:
+        cached.unlink(missing_ok=True)
+
+
+def remember_stems(video_id, folder):
+    cached = folder / f"stems{STEM_CACHE_SUFFIX}"
+    try:
+        if sum((folder / name).stat().st_size for name in STEM_CACHE_FILES) > LIMIT:
+            return
+        with ZipFile(cached, "w") as archive:
+            for name in STEM_CACHE_FILES:
+                archive.write(folder / name, name)
+        if cached.stat().st_size <= LIMIT:
+            store_youtube_cache(video_id + ".htdemucs-v1", cached)
+    except OSError:
+        logging.warning("Could not cache separated stems for %s", video_id)
+    finally:
+        cached.unlink(missing_ok=True)
+
+
 def process_audio(job_id, folder, source, video_id, operation):
     message = "Файлын дууг уншиж чадсангүй. Өөр файл оруулж үзээрэй."
     downloaded = False
+    cache_stems = False
     try:
         if video_id:
             message = (
@@ -184,6 +234,11 @@ def process_audio(job_id, folder, source, video_id, operation):
                             write_job(job_id, {"status": "ready", "operation": "convert",
                                                "expires": time.time() + RETENTION})
                         return
+                cache_stems = source is None and operation == "separate"
+                if cache_stems and restore_stems(video_id, folder):
+                    with lock:
+                        write_job(job_id, {"status": "ready", "expires": time.time() + RETENTION})
+                    return
                 cache_mp3 = source is None
                 source = source or read_youtube_cache(video_id, folder)
                 if source is None:
@@ -230,6 +285,8 @@ def process_audio(job_id, folder, source, video_id, operation):
             run(["ffmpeg", "-nostdin", "-v", "error", "-i", str(stem), "-t", "30",
                  "-c:a", "copy", str(folder / f"preview-{name}.mp3")], 30)
         track.unlink()
+        if cache_stems:
+            remember_stems(video_id, folder)
         with lock:
             write_job(job_id, {"status": "ready", "expires": time.time() + RETENTION})
     except Exception:

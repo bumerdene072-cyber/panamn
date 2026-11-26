@@ -69,14 +69,14 @@ def _download_apify(video_id, folder, token):
     opener = build_opener(NoRedirect)
     request = Request(
         "https://api.apify.com/v2/acts/g2h290TFYTSCWID7f/run-sync-get-dataset-items"
-        "?timeout=60&maxItems=1&maxTotalChargeUsd=0.15&limit=2",
+        "?timeout=180&maxItems=1&maxTotalChargeUsd=0.15&limit=2",
         data=json.dumps({
             "format": "m4a",
             "urls": [f"https://www.youtube.com/watch?v={video_id}"],
         }).encode(),
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
     )
-    with opener.open(request, timeout=75) as response:
+    with opener.open(request, timeout=195) as response:
         items = json.loads(response.read(65536))
     if not isinstance(items, list) or len(items) != 1 or not isinstance(items[0], dict):
         raise ValueError("unexpected Apify dataset")
@@ -91,7 +91,8 @@ def _download_apify(video_id, folder, token):
         source = Path(scratch) / "audio.m4a"
         remaining = LIMIT
         deadline = time.monotonic() + 35
-        with opener.open(url, timeout=12) as response, source.open("wb") as target:
+        media_request = Request(url, headers={"User-Agent": "curl/8.0"})
+        with opener.open(media_request, timeout=12) as response, source.open("wb") as target:
             while chunk := response.read1(65536):
                 remaining -= len(chunk)
                 if remaining < 0 or time.monotonic() > deadline:

@@ -50,5 +50,5 @@ Set `APIFY_API_TOKEN` in the app service's environment to enable the
 API Ninja YouTube Video Downloader fallback on YouTube bot checks or HTTP 403.
 Keep the token server-side. Docker Compose passes it through from the deployment
 environment. The Actor receives one canonical YouTube URL per run, with a
-60-second run timeout and a requested cap of $0.15 per run. Monitor the account's
+180-second run timeout and a requested cap of $0.15 per run. Monitor the account's
 usage separately. Successful imports use the existing audio cache.

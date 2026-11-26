@@ -433,14 +433,39 @@ def payment(job_id):
         if job.get("paid"):
             return jsonify(paid=True)
         intent = job.get("intent")
-        state = wire.payment_status(intent, job_id) if intent else None
+        details = wire.get_intent(intent) if intent else {}
+        state = wire.verify(details, intent, job_id) if intent else None
         if state == "succeeded":
             mark_paid(job_id, job)
             return jsonify(paid=True)
+        expired = wire.intent_expired(details)
         if not checkout:
-            return jsonify(paid=False)
-        if (not intent or state == "canceled") and job.get("order_deadline", job["expires"]) < time.time() + 7200:
-            return jsonify(error="Файлын хадгалах хугацаа дуусах дөхсөн байна. Дахин боловсруулна уу."), 409
+            return jsonify(paid=False, expired=state == "canceled" or expired)
+        if state in ("processing", "requires_capture"):
+            return jsonify(paid=False, processing=True)
+        existing = job.get("checkout_url")
+        if intent and state != "canceled" and existing and not expired:
+            url = wire.open_checkout(existing, intent)
+            if url:
+                return jsonify(paid=False, url=url)
+        if intent and state in ("requires_action", "requires_payment_method") and (expired or existing):
+            try:
+                state = wire.cancel_intent(intent, job_id, f'{job_id}-{job["attempt"]}-cancel')
+            except wire.WireError as error:
+                if error.status != 400:
+                    raise
+                state = wire.payment_status(intent, job_id)
+            if state == "succeeded":
+                mark_paid(job_id, job)
+                return jsonify(paid=True)
+            if state != "canceled":
+                return jsonify(paid=False, processing=True)
+        if not intent or state == "canceled":
+            # The stored files are retained for seven days once checkout starts.
+            if job["expires"] < time.time() + 7200:
+                return jsonify(error="Файлын хадгалах хугацаа дуусах дөхсөн байна. Дахин боловсруулна уу."), 409
+        elif state != "requires_payment_method":
+            return jsonify(paid=False, processing=True)
         if not intent or state == "canceled":
             attempt = job.get("attempt", 0) + 1
             key = f"{job_id}-{attempt}"
@@ -455,7 +480,8 @@ def payment(job_id):
             with lock:
                 write_job(job_id, job)
         return jsonify(paid=False, url=job["checkout_url"])
-    except wire.WireError:
+    except wire.WireError as error:
+        logging.warning("Wire checkout failed (HTTP %s): %s", error.status, error)
         return jsonify(error="Wire төлбөрийн мэдээлэл авахад алдаа гарлаа. Дахин шалгана уу."), 502
     finally:
         payment_lock.release()

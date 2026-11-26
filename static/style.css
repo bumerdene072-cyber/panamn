@@ -102,4 +102,4 @@ summary { cursor: pointer; }
 .qpay-icon { font-size: 1.25rem; }
 .download-all { margin-top: 14px; text-decoration: none; }
 
-#convert-to-upload { margin-top: 8px; min-height: 44px; width: 100%; border: 1px solid var(--line); border-radius: 11px; background: var(--soft); color: var(--highlight); font-weight: 700; }
+#convert-to-upload, .source-export { margin-top: 8px; min-height: 44px; width: 100%; border: 1px solid var(--line); border-radius: 11px; background: var(--soft); color: var(--highlight); font-weight: 700; }

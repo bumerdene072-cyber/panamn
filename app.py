@@ -122,6 +122,26 @@ class YouTubeImportError(Exception):
     pass
 
 
+def copy_registered_source(video_id, folder):
+    library = os.environ.get("PANAMN_SOURCE_DIR")
+    if not library:
+        return None
+    for extension in sorted(FORMATS):
+        registered = Path(library) / f"{video_id}{extension}"
+        try:
+            with registered.open("rb") as source:
+                size = os.fstat(source.fileno()).st_size
+                if not 0 < size <= LIMIT:
+                    raise YouTubeImportError("Бүртгэлтэй эх файл хоосон эсвэл 50 МБ-аас их байна.")
+                destination = folder / f"registered{extension}"
+                with destination.open("wb") as target:
+                    shutil.copyfileobj(source, target)
+                return destination
+        except FileNotFoundError:
+            continue
+    return None
+
+
 def download_youtube(video_id, folder):
     completed = subprocess.run([sys.executable, "-m", "yt_dlp", "--ignore-config", "--no-playlist",
          "--js-runtimes", "node", "--socket-timeout", "15", "--retries", "1",
@@ -203,7 +223,7 @@ def process_audio(job_id, folder, source, video_id, operation):
                 "бичлэгийн холбоос эсвэл аудио файл оруулна уу."
             )
             try:
-                source = download_youtube(video_id, folder)
+                source = copy_registered_source(video_id, folder) or download_youtube(video_id, folder)
             except YouTubeImportError as error:
                 message = str(error)
                 raise

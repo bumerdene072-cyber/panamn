@@ -1,6 +1,6 @@
 const form = document.querySelector('#upload');
 const youtube = document.querySelector('#youtube');
-const jobButtons = [youtube.querySelector('button'), form.querySelector('button')];
+const jobButtons = [...youtube.querySelectorAll('button[type=submit]'), form.querySelector('button')];
 const audio = document.querySelector('#audio');
 const filename = document.querySelector('#filename');
 const drop = document.querySelector('#drop');
@@ -236,6 +236,7 @@ async function submitJob(event) {
     return;
   }
   const data = new FormData(inputForm);
+  if (!fromFile) data.set("operation", event.submitter?.value || "separate");
   jobBusy = true;
   updateJobButtons();
   results.hidden = true;

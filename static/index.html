@@ -7,10 +7,10 @@
 <meta name="description" content="YouTube холбоос, MP3 эсвэл MP4 файлаас дуучны хоолой, хөгжмийг салга.">
 <title>PANAMN — Дуу салгагч</title>
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=9">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=9">
-<link rel="stylesheet" href="/static/style.css?v=9">
-<script defer src="/static/main.js?v=9"></script>
+<link rel="icon" href="/static/icon-192.png?v=10">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=10">
+<link rel="stylesheet" href="/static/style.css?v=10">
+<script defer src="/static/main.js?v=10"></script>
 </head>
 <body>
 <header class="top"><a class="brand" href="/" aria-label="PANAMN нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
@@ -18,19 +18,19 @@
   <section class="intro">
     <div class="hero-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <h1>Дуучны хоолой,<br><em>хөгжмийг салга.</em></h1>
-    <p>YouTube линкээс MP3 үнэгүй татах эсвэл MP3, MP4 файлаас хоолой, хөгжмийг салгах.</p>
+    <p>YouTube линк, MP3 эсвэл MP4 файлаас хоолой, хөгжмийг шууд салгаарай.</p>
   </section>
   <section class="panel" aria-label="Дуу боловсруулах">
     <div class="sources" role="group" aria-label="Дууны эх үүсвэр">
-      <button type="button" id="youtube-mode" aria-controls="youtube" aria-pressed="true"><span aria-hidden="true">▶</span> YouTube → MP3</button>
+      <button type="button" id="youtube-mode" aria-controls="youtube" aria-pressed="true"><span aria-hidden="true">▶</span> YouTube линк</button>
       <button type="button" id="upload-mode" aria-controls="upload" aria-pressed="false"><span aria-hidden="true">↑</span> Хоолой салгах</button>
     </div>
     <form id="youtube">
-      <input type="hidden" name="operation" value="convert">
       <label for="link">YouTube холбоос</label>
       <input id="link" name="youtube_url" type="text" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="YouTube холбоосоо хуулж оруулна уу">
       <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
-      <button class="primary" type="submit">MP3 болгох · Үнэгүй <span aria-hidden="true">→</span></button>
+      <button class="primary" type="submit" name="operation" value="separate">YouTube-ээс шууд салгах <span aria-hidden="true">→</span></button>
+      <button class="source-export" type="submit" name="operation" value="convert">Эх MP3 үнэгүй татах ↓</button>
     </form>
     <form id="upload" hidden>
       <label id="drop" class="drop">

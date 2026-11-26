@@ -123,19 +123,40 @@ async function resumeJob(id) {
   return job;
 }
 
+const processing = document.querySelector('#processing');
+const meter = document.querySelector('#job-progress');
+const jobTime = document.querySelector('#job-time');
+const phaseLabels = {
+  downloading: 'YouTube-ээс аудио авч байна…',
+  preparing: 'Аудиог салгалтад бэлдэж байна…',
+  separating: 'Хоолой, хөгжмийг салгаж байна…',
+  encoding: 'MP3 файлуудыг бэлдэж байна…',
+};
+
 async function waitForJob(id) {
-  let lastStatus;
-  let job = await resumeJob(id);
-  while (['downloading', 'processing'].includes(job.status)) {
-    if (job.status !== lastStatus) {
-      announce(job.status === 'downloading' ? 'YouTube-ээс аудио авч байна…' :
-        'Хоолой, хөгжмийг салгаж байна. Хэдэн минут үргэлжилж болно.');
-      lastStatus = job.status;
+  let previousPhase;
+  try {
+    let job = await resumeJob(id);
+    while (job.status === 'downloading' || job.status === 'processing') {
+      const phase = job.phase || (job.status === 'downloading' ? 'downloading' : 'separating');
+      if (phase !== previousPhase) {
+        announce(phaseLabels[phase]);
+        previousPhase = phase;
+      }
+      const value = Number.isInteger(job.progress) ? job.progress : null;
+      if (value === null) meter.removeAttribute('value');
+      else meter.value = value;
+      const seconds = job.elapsed;
+      const time = Number.isInteger(seconds) ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '';
+      jobTime.textContent = [value === null ? '' : `${value}%`, time].filter(Boolean).join(' · ');
+      processing.hidden = false;
+      await pause(1800);
+      job = await resumeJob(id);
     }
-    await pause(2000);
-    job = await resumeJob(id);
+    return job;
+  } finally {
+    processing.hidden = true;
   }
-  return job;
 }
 
 function updateJobButtons() {

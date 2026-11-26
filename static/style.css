@@ -91,3 +91,7 @@ summary { cursor: pointer; }
   .hero-wave { height: 49px; margin-bottom: 17px; }
   .tracks { grid-template-columns: 1fr; }
 }
+
+.processing { display: flex; align-items: center; gap: 12px; margin-top: 10px; }
+.processing progress { flex: 1; min-width: 0; height: 10px; accent-color: var(--accent); }
+.processing output { min-width: 78px; text-align: right; color: var(--muted); font-size: .86rem; font-variant-numeric: tabular-nums; }

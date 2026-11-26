@@ -27,6 +27,8 @@ STEMS = {"vocals": "vocals", "instrumental": "no_vocals"}
 lock = Lock()
 payment_lock = Lock()
 slots = BoundedSemaphore(1)
+WORKER_ID = uuid4().hex
+ACTIVE_STATUSES = {"downloading", "processing"}
 
 
 @app.get("/")
@@ -135,6 +137,53 @@ def download_youtube(video_id, folder):
     raise YouTubeImportError("Бичлэг 10 минут эсвэл 50 МБ-ын хязгаарт багтаагүй, эсвэл татах боломжтой аудио олдсонгүй. MP3/MP4 файл оруулж үзээрэй.")
 
 
+def update_processing(job_id, **fields):
+    with lock:
+        job = read_job(job_id)
+        if job is not None:
+            job.update(fields)
+            write_job(job_id, job)
+
+
+def run_demucs(job_id, folder, track):
+    device = os.environ.get("DEMUCS_DEVICE", "cpu")
+    command = [
+        sys.executable, "-m", "demucs", "-n", "htdemucs", "-d", device,
+        "--two-stems", "vocals", "--mp3", "--mp3-bitrate", "320",
+        "--jobs", os.environ.get("DEMUCS_JOBS", "0"), "-o", str(folder), str(track),
+    ]
+    timeout = 1200
+    deadline = time.monotonic() + timeout
+    progress = 0
+    log_path = folder / "demucs.log"
+    update_processing(job_id, phase="separating", progress=0)
+    with log_path.open("wb") as log, subprocess.Popen(
+        command, stdout=subprocess.DEVNULL, stderr=log, stdin=subprocess.DEVNULL,
+    ) as process:
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                process.kill()
+                raise subprocess.TimeoutExpired(command, timeout)
+            try:
+                returncode = process.wait(timeout=min(1, remaining))
+            except subprocess.TimeoutExpired:
+                # Demucs' tqdm progress includes carriage-return-delimited percentages.
+                values = re.findall(rb"([0-9]{1,3})%\|", log_path.read_bytes())
+                if values:
+                    current = min(99, int(values[-1]))
+                    if current > progress:
+                        progress = current
+                        update_processing(job_id, progress=progress)
+                continue
+            if returncode:
+                logging.error("Demucs failed: %s", log_path.read_text(errors="replace")[-1200:])
+                raise subprocess.CalledProcessError(returncode, command)
+            break
+    log_path.unlink()
+    update_processing(job_id, phase="encoding", progress=None)
+
+
 def separate(job_id, folder, source, video_id):
     message = "Файлын дууг уншиж чадсангүй. Өөр файл оруулж үзээрэй."
     try:
@@ -148,8 +197,7 @@ def separate(job_id, folder, source, video_id):
             except YouTubeImportError as error:
                 message = str(error)
                 raise
-            with lock:
-                write_job(job_id, {"status": "processing", "expires": time.time() + 3600})
+            update_processing(job_id, status="processing", phase="preparing")
             message = "YouTube-ээс авсан аудиог уншиж чадсангүй."
         track = folder / "track.wav"
         run(["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file", "-format_whitelist",
@@ -161,9 +209,7 @@ def separate(job_id, folder, source, video_id):
             message = "10 минут хүртэлх бичлэг оруулна уу."
             raise ValueError(message)
         message = "AI боловсруулалт амжилтгүй боллоо. Дахин оролдоно уу."
-        run([sys.executable, "-m", "demucs", "-n", "htdemucs", "-d",
-             os.environ.get("DEMUCS_DEVICE", "cpu"), "--two-stems", "vocals",
-             "--mp3", "--mp3-bitrate", "320", "-o", str(folder), str(track)], 1200)
+        run_demucs(job_id, folder, track)
         for name in STEMS.values():
             stem = folder / "htdemucs" / "track" / f"{name}.mp3"
             if not stem.stat().st_size:
@@ -221,6 +267,9 @@ def submit():
         with lock:
             write_job(job_id, {
                 "status": "downloading" if video_id else "processing",
+                "phase": "downloading" if video_id else "preparing",
+                "started": time.time(),
+                "worker": WORKER_ID,
                 "expires": time.time() + 3600,
             })
         Thread(target=separate, args=(job_id, folder, source, video_id), daemon=True).start()
@@ -238,7 +287,11 @@ def status(job_id):
         job = read_job(job_id)
         if job is None:
             return jsonify(error="Боловсруулалтын хугацаа дууссан байна."), 404
+        if job["status"] in ACTIVE_STATUSES and job.get("worker") != WORKER_ID:
+            return jsonify(status="failed", error="Сервер дахин ассан тул энэ оролдлого тасарлаа. Дуугаа дахин оруулна уу.")
         return jsonify(status=job["status"], error=job.get("error"),
+                       phase=job.get("phase"), progress=job.get("progress"),
+                       elapsed=int(max(0, time.time() - job["started"])) if "started" in job else None,
                        paid=job.get("paid", False), payment_available=wire.configured(),
                        amount=wire.PRICE, payment_started=bool(job.get("intent")))
 

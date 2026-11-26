@@ -24,6 +24,10 @@ RETENTION = 24 * 3600
 PAID_RETENTION = 7 * 24 * 3600
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/tmp/duu-data")).resolve()
 DATA_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+YOUTUBE_CACHE_DIR = DATA_DIR / ".youtube-cache"
+YOUTUBE_CACHE_TTL = 6 * 3600
+YOUTUBE_CACHE_LIMIT = 256 * 1024 * 1024
+YOUTUBE_AUDIO_FORMATS = (".m4a", ".webm", ".mp4")
 FORMATS = {".mp3", ".wav", ".m4a", ".flac", ".ogg", ".mp4"}
 MEDIA_FORMATS = "mp3,wav,flac,ogg,mov,mp4,m4a,3gp,3g2,mj2,matroska,webm"
 STEMS = {"vocals": "vocals", "instrumental": "no_vocals"}
@@ -150,6 +154,60 @@ def copy_registered_source(video_id, folder):
     return None
 
 
+def prune_youtube_cache():
+    now = time.time()
+    entries = []
+    for path in YOUTUBE_CACHE_DIR.iterdir():
+        if not path.is_file():
+            continue
+        info = path.stat()
+        if now - info.st_mtime >= YOUTUBE_CACHE_TTL:
+            path.unlink(missing_ok=True)
+        else:
+            entries.append((info.st_mtime, info.st_size, path))
+    size = sum(entry[1] for entry in entries)
+    for _, length, path in sorted(entries):
+        if size <= YOUTUBE_CACHE_LIMIT:
+            break
+        path.unlink(missing_ok=True)
+        size -= length
+
+
+def read_youtube_cache(video_id, folder):
+    if not YOUTUBE_CACHE_DIR.is_dir():
+        return None
+    try:
+        prune_youtube_cache()
+        for extension in YOUTUBE_AUDIO_FORMATS:
+            cached = YOUTUBE_CACHE_DIR / f"{video_id}{extension}"
+            if cached.is_file() and 0 < cached.stat().st_size <= LIMIT:
+                destination = folder / f"cached{extension}"
+                shutil.copyfile(cached, destination)
+                return destination
+    except OSError:
+        logging.warning("YouTube cache read failed", exc_info=True)
+    return None
+
+
+def store_youtube_cache(video_id, source):
+    temporary = None
+    try:
+        YOUTUBE_CACHE_DIR.mkdir(mode=0o700, exist_ok=True)
+        with tempfile.NamedTemporaryFile(dir=YOUTUBE_CACHE_DIR, delete=False) as target:
+            temporary = Path(target.name)
+            with source.open("rb") as audio:
+                shutil.copyfileobj(audio, target)
+        temporary.replace(YOUTUBE_CACHE_DIR / f"{video_id}{source.suffix}")
+        prune_youtube_cache()
+    except OSError:
+        logging.warning("YouTube cache write failed", exc_info=True)
+        if temporary:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 def download_youtube(video_id, folder):
     completed = subprocess.run([sys.executable, "-m", "yt_dlp", "--ignore-config", "--no-playlist",
          "--js-runtimes", "node", "--socket-timeout", "15", "--retries", "1",
@@ -168,8 +226,8 @@ def download_youtube(video_id, folder):
         if any(reason in detail for reason in ("unavailable", "private video", "age-restricted")):
             raise YouTubeImportError("Энэ бичлэгийг YouTube-ээс авах боломжгүй байна. Өөр нээлттэй линк эсвэл MP3/MP4 файл оруулна уу.")
         raise YouTubeImportError("YouTube-ээс аудио татаж чадсангүй. Өөр линк эсвэл MP3/MP4 файл оруулна уу.")
-    for ext in ("m4a", "webm", "mp4"):
-        source = folder / f"youtube.{ext}"
+    for extension in YOUTUBE_AUDIO_FORMATS:
+        source = folder / f"youtube{extension}"
         if source.is_file() and 0 < source.stat().st_size <= LIMIT:
             return source
     raise YouTubeImportError("Бичлэг 10 минут эсвэл 50 МБ-ын хязгаарт багтаагүй, эсвэл татах боломжтой аудио олдсонгүй. MP3/MP4 файл оруулж үзээрэй.")
@@ -224,6 +282,7 @@ def run_demucs(job_id, folder, track):
 
 def process_audio(job_id, folder, source, video_id, operation):
     message = "Файлын дууг уншиж чадсангүй. Өөр файл оруулж үзээрэй."
+    downloaded = False
     try:
         if video_id:
             message = (
@@ -231,7 +290,10 @@ def process_audio(job_id, folder, source, video_id, operation):
                 "бичлэгийн холбоос эсвэл аудио файл оруулна уу."
             )
             try:
-                source = copy_registered_source(video_id, folder) or download_youtube(video_id, folder)
+                source = copy_registered_source(video_id, folder) or read_youtube_cache(video_id, folder)
+                if source is None:
+                    source = download_youtube(video_id, folder)
+                    downloaded = True
             except YouTubeImportError as error:
                 message = str(error)
                 raise
@@ -244,6 +306,8 @@ def process_audio(job_id, folder, source, video_id, operation):
                  "-format_whitelist", MEDIA_FORMATS, "-i", str(source), "-map", "0:a:0",
                  "-vn", "-t", "600", "-c:a", "libmp3lame", "-b:a", "192k",
                  str(folder / "source.mp3")], 90)
+            if downloaded:
+                store_youtube_cache(video_id, source)
             source.unlink()
             with lock:
                 write_job(job_id, {"status": "ready", "operation": "convert",
@@ -253,11 +317,13 @@ def process_audio(job_id, folder, source, video_id, operation):
         run(["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file", "-format_whitelist",
              MEDIA_FORMATS, "-i", str(source), "-map",
              "0:a:0", "-vn", "-ac", "2", "-ar", "44100", "-t", "601", str(track)], 90)
-        source.unlink()
         # Stereo 16-bit PCM at 44.1 kHz, with room for the WAV header.
         if track.stat().st_size > 600 * 44100 * 4 + 1024:
             message = "10 минут хүртэлх бичлэг оруулна уу."
             raise ValueError(message)
+        if downloaded:
+            store_youtube_cache(video_id, source)
+        source.unlink()
         message = "AI боловсруулалт амжилтгүй боллоо. Дахин оролдоно уу."
         run_demucs(job_id, folder, track)
         for name in STEMS.values():

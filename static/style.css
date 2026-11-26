@@ -109,6 +109,20 @@ summary { cursor: pointer; }
 .search-row input { min-width: 0; flex: 1; min-height: 48px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--bg); color: var(--text); font-size: 16px; }
 .search-row button { border: 1px solid var(--line); border-radius: 12px; background: var(--soft); color: var(--highlight); padding: 8px 14px; font-weight: 750; }
 #search-status { margin: 9px 0 0; color: var(--muted); overflow-wrap: anywhere; }
-#search-results { display: grid; gap: 5px; list-style: none; padding: 0; margin: 9px 0 0; }
-#search-results button { width: 100%; min-height: 48px; display: grid; gap: 2px; text-align: left; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 8px 11px; }
-#search-results button:hover { background: var(--soft); }
+#search-results { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; list-style: none; padding: 0; margin: 9px 0 0; }
+#search-results button { width: 100%; height: 100%; min-height: 70px; display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 9px; text-align: left; overflow-wrap: anywhere; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 8px 11px; }
+#search-results button:hover { background: var(--soft); border-color: var(--highlight); }
+
+.song-art { position: relative; display: block; background: var(--soft); aspect-ratio: 16 / 9; overflow: hidden; border-radius: 8px; }
+.song-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.song-play { position: absolute; inset: 50% auto auto 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: #181225de; color: #fff; font-size: .73rem; }
+.song-copy { display: grid; gap: 2px; line-height: 1.32; }
+.song-copy strong { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.song-copy small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+#song-player { margin-top: 12px; overflow: hidden; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); }
+#player-frame { aspect-ratio: 16 / 9; background: #0e0d12; }
+#player-frame iframe { display: block; width: 100%; height: 100%; border: 0; }
+.player-info { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px 12px; padding: 10px 12px; }
+.player-info strong { overflow-wrap: anywhere; }
+.player-info a { font-size: .86rem; font-weight: 700; color: var(--highlight); }
+@media (max-width: 580px) { #search-results { grid-template-columns: minmax(0, 1fr); } }

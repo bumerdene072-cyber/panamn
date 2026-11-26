@@ -8,6 +8,10 @@ const searchInput = document.querySelector('#song-query');
 const searchStatus = document.querySelector('#search-status');
 const searchResults = document.querySelector('#search-results');
 const youtubeLink = document.querySelector('#link');
+const songPlayer = document.querySelector('#song-player');
+const playerFrame = document.querySelector('#player-frame');
+const playerTitle = document.querySelector('#player-title');
+const watchYouTube = document.querySelector('#watch-youtube');
 let searchRequest;
 const filename = document.querySelector('#filename');
 const drop = document.querySelector('#drop');
@@ -37,6 +41,7 @@ function selectSource(fromFile, focus = false) {
   form.hidden = !fromFile;
   youtube.hidden = fromFile;
   searchPanel.hidden = fromFile;
+  if (fromFile) closeSongPlayer();
   youtubeMode.setAttribute('aria-pressed', String(!fromFile));
   uploadMode.setAttribute('aria-pressed', String(fromFile));
   uploadFallback.hidden = true;
@@ -107,6 +112,33 @@ function announceSearch(message) {
   searchStatus.hidden = !message;
 }
 
+function closeSongPlayer() {
+  playerFrame.replaceChildren();
+  watchYouTube.removeAttribute('href');
+  playerTitle.textContent = '';
+  songPlayer.hidden = true;
+}
+
+function playSong(result) {
+  const id = result.id;
+  if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return;
+  const watchUrl = 'https://www.youtube.com/watch?v=' + id;
+  youtubeLink.value = watchUrl;
+  watchYouTube.href = watchUrl;
+  playerTitle.textContent = result.title;
+  const player = document.createElement('iframe');
+  player.title = result.title;
+  player.referrerPolicy = 'strict-origin-when-cross-origin';
+  player.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  player.allowFullscreen = true;
+  player.src = 'https://www.youtube-nocookie.com/embed/' + id + '?autoplay=1&playsinline=1';
+  playerFrame.replaceChildren(player);
+  songPlayer.hidden = false;
+  searchResults.hidden = true;
+  announceSearch('');
+  player.focus();
+}
+
 searchForm.addEventListener('submit', async event => {
   event.preventDefault();
   searchRequest?.abort();
@@ -114,6 +146,7 @@ searchForm.addEventListener('submit', async event => {
   searchRequest = controller;
   searchResults.hidden = true;
   searchResults.replaceChildren();
+  closeSongPlayer();
   announceSearch('YouTube-ээс хайж байна…');
   try {
     const {results} = await request('/api/youtube/search?' + new URLSearchParams({q: searchInput.value}), {
@@ -122,21 +155,33 @@ searchForm.addEventListener('submit', async event => {
     for (const result of results) {
       const row = document.createElement('li');
       const button = document.createElement('button');
+      const art = document.createElement('span');
+      const thumbnail = document.createElement('img');
+      const play = document.createElement('span');
+      const copy = document.createElement('span');
       const title = document.createElement('strong');
       const details = document.createElement('small');
       button.type = 'button';
+      button.setAttribute('aria-label', 'Тоглуулах: ' + result.title);
+      art.className = 'song-art';
+      thumbnail.src = 'https://i.ytimg.com/vi/' + result.id + '/mqdefault.jpg';
+      thumbnail.alt = '';
+      thumbnail.loading = 'lazy';
+      thumbnail.decoding = 'async';
+      thumbnail.referrerPolicy = 'no-referrer';
+      play.className = 'song-play';
+      play.setAttribute('aria-hidden', 'true');
+      play.textContent = '▶';
+      copy.className = 'song-copy';
       title.textContent = result.title;
       const seconds = Math.floor(result.duration);
       const duration = Number.isFinite(result.duration)
         ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : '';
       details.textContent = [result.channel, duration].filter(Boolean).join(' · ');
-      button.append(title, details);
-      button.addEventListener('click', () => {
-        youtubeLink.value = 'https://www.youtube.com/watch?v=' + result.id;
-        announceSearch('Сонгосон: ' + result.title);
-        searchResults.hidden = true;
-        youtube.querySelector('button[type=submit]').focus();
-      });
+      art.append(thumbnail, play);
+      copy.append(title, details);
+      button.append(art, copy);
+      button.addEventListener('click', () => playSong(result));
       row.append(button);
       searchResults.append(row);
     }
@@ -268,6 +313,7 @@ function clearJob() {
   youtube.reset();
   searchRequest?.abort();
   searchForm.reset();
+  closeSongPlayer();
   searchResults.replaceChildren();
   searchResults.hidden = true;
   announceSearch('');

@@ -277,7 +277,7 @@ def payment(job_id):
 @app.post("/api/wire/webhook")
 def wire_webhook():
     secret = os.environ.get("WIRE_WEBHOOK_SECRET")
-    if not secret or not wire.configured():
+    if not secret:
         return "", 503
     request.max_content_length = 64 * 1024
     try:
@@ -288,6 +288,8 @@ def wire_webhook():
         return "", 400
     if event.get("type") != "payment_intent.succeeded":
         return "", 204
+    if not wire.configured():
+        return "", 503
     data = event.get("data")
     if not isinstance(data, dict) or data.get("object") != "payment_intent":
         return "", 400

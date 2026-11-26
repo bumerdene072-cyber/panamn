@@ -6,7 +6,7 @@ COPY --from=javascript /usr/local/bin/node /usr/local/bin/node
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt
-COPY app.py wire.py yt.py telegram_notify.py .
+COPY app.py wire.py yt.py telegram_notify.py support_chat.py .
 COPY static static
 RUN install -d -m 700 -o app -g app /data
 ENV DATA_DIR=/data

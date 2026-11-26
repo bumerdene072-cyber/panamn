@@ -26,6 +26,12 @@ const paymentNotice = document.querySelector('#payment-notice');
 const paymentPanel = document.querySelector('#payment');
 const price = document.querySelector('#price');
 const downloadAll = document.querySelector('#download-all');
+downloadAll.addEventListener('click', () => {
+  if (downloadAll.hidden) return;
+  for (const link of results.querySelectorAll('.tracks article a:not([hidden])')) {
+    if (link.hasAttribute('href')) link.click();
+  }
+});
 const newJob = document.querySelector('#new-job');
 localStorage.removeItem('duu-salgagch-current-job');
 let activeJob = null;
@@ -214,7 +220,6 @@ function showJob(job, id) {
     link.hidden = !job.paid;
   });
   price.textContent = new Intl.NumberFormat('mn-MN').format(job.amount);
-  downloadAll.href = url + "/download";
   downloadAll.hidden = !job.paid;
   paymentPanel.hidden = job.paid;
   checkout.hidden = !job.payment_available;
@@ -424,7 +429,7 @@ function clearJob() {
   converted.hidden = true;
   results.hidden = true;
   convertedDownload.removeAttribute('href');
-  downloadAll.removeAttribute('href');
+  downloadAll.hidden = true;
   for (const player of results.querySelectorAll('audio')) {
     player.removeAttribute('src');
     player.load();
@@ -436,10 +441,10 @@ newJob.addEventListener('click', () => {
   if (!jobBusy && !paymentBusy) clearJob();
 });
 
-for (const link of [convertedDownload, downloadAll]) {
+for (const link of [convertedDownload]) {
   link.addEventListener('click', event => {
     // Keep a manual retry available after an automatic checkout download.
-    if (event.isTrusted && activeJob && link === convertedDownload) {
+    if (event.isTrusted && activeJob) {
       const downloadedJob = activeJob;
       setTimeout(() => {
         if (activeJob === downloadedJob && !jobBusy && !paymentBusy) clearJob();
@@ -546,12 +551,9 @@ window.addEventListener('beforeinstallprompt', event => {
   offerInstall();
 });
 
-install.addEventListener('click', () => {
-  if (!installDialog.open) installDialog.showModal();
-});
-document.querySelector('#install-later').addEventListener('click', () => installDialog.close());
-installConfirm.addEventListener('click', async () => {
+async function requestInstall() {
   if (!installPrompt) {
+    if (!installDialog.open) installDialog.showModal();
     installHelp.hidden = false;
     installConfirm.hidden = true;
     return;
@@ -559,9 +561,12 @@ installConfirm.addEventListener('click', async () => {
   const prompt = installPrompt;
   installPrompt = null;
   install.hidden = !appleMobile;
-  installDialog.close();
+  if (installDialog.open) installDialog.close();
   try { await prompt.prompt(); } catch {}
-});
+}
+install.addEventListener('click', requestInstall);
+installConfirm.addEventListener('click', requestInstall);
+document.querySelector('#install-later').addEventListener('click', () => installDialog.close());
 window.addEventListener('appinstalled', () => {
   installPrompt = null;
   install.hidden = true;

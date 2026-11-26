@@ -17,10 +17,19 @@
   <section class="intro">
     <div class="wave" aria-hidden="true"></div>
     <h1>Дуунаас хоолой,<br><em>хөгжмийг салга.</em></h1>
-    <p>Дууны хоолой, хөгжмийг салгаад эхний 20 секундийг үнэгүй сонсоорой.</p>
+    <p>YouTube линкээ оруулаад дуучны хоолой, цэвэр хөгжмийг тус тусад нь MP3 болгоорой.</p>
   </section>
   <section class="panel" aria-label="Дуу боловсруулах">
-    <form id="upload">
+    <form id="youtube">
+      <label for="link">YouTube холбоос</label>
+      <div class="urlrow"><input id="link" name="youtube_url" type="url" inputmode="url" maxlength="2048" required placeholder="https://youtu.be/…"></div>
+      <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
+      <label class="rights"><input type="checkbox" name="rights" value="yes" required> Би энэ дууг боловсруулах эрхтэй.</label>
+      <button type="submit">Хоолой, хөгжмийг салгах</button>
+    </form>
+    <details>
+      <summary>Эсвэл аудио файл оруулах</summary>
+      <form id="upload">
       <label id="drop" class="drop">
         <input type="file" name="audio" id="audio" accept=".mp3,.wav,.m4a,.flac,.ogg,.mp4" required>
         <span class="music" aria-hidden="true">♫</span>
@@ -29,7 +38,8 @@
       </label>
       <label class="rights"><input type="checkbox" name="rights" value="yes" required> Би энэ файлыг боловсруулах эрхтэй.</label>
       <button id="submit" type="submit">Хоолой, хөгжмийг салгах</button>
-    </form>
+      </form>
+    </details>
     <p id="status" role="status" hidden></p>
     <div id="results" hidden>
       <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
@@ -44,11 +54,6 @@
       </div>
     </div>
     <details id="ios-install" hidden><summary>iPhone-д апп суулгах</summary><p>Safari дээр хуваалцах цэсийг нээгээд “Add to Home Screen” сонгоно уу.</p></details>
-    <details>
-      <summary>YouTube бичлэг ашиглах</summary>
-      <p>YouTube холбоосоор бичлэгээ нээж шалгаарай. Өөрийн бичлэгийг <a href="https://studio.youtube.com/" target="_blank" rel="noopener noreferrer">YouTube Studio</a>-оос татаж аваад дээр оруулна уу.</p>
-      <form id="youtube"><label for="link">YouTube холбоос</label><div class="urlrow"><input id="link" type="url" required placeholder="https://youtu.be/…"><button type="submit">Нээх</button></div><small id="link-error" role="status"></small></form>
-    </details>
   </section>
 </main>
 </body>

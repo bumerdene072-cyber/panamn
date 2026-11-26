@@ -1,12 +1,14 @@
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import shutil
 import subprocess
 import sys
 import time
 from threading import BoundedSemaphore, Lock, Thread
+from urllib.parse import parse_qs, urlsplit
 from uuid import UUID, uuid4
 
 from flask import Flask, jsonify, request, send_file
@@ -82,12 +84,57 @@ def run(command, timeout):
     )
 
 
-def separate(job_id, folder, source):
+def youtube_video_id(link):
+    if len(link) > 2048:
+        return None
+    try:
+        url = urlsplit(link.strip())
+        if url.scheme not in {"http", "https"} or url.username or url.password or url.port:
+            return None
+    except ValueError:
+        return None
+    if url.hostname == "youtu.be":
+        video_id = url.path.removeprefix("/")
+    elif url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"}:
+        if url.path == "/watch":
+            video_id = parse_qs(url.query).get("v", [""])[0]
+        else:
+            match = re.fullmatch(r"/(?:shorts|live|embed)/([^/]+)/?", url.path)
+            video_id = match[1] if match else ""
+    else:
+        return None
+    return video_id if re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id) else None
+
+
+def download_youtube(video_id, folder):
+    run([sys.executable, "-m", "yt_dlp", "--ignore-config", "--no-playlist",
+         "--js-runtimes", "node", "--socket-timeout", "15", "--retries", "1",
+         "--match-filter", "!is_live & duration <= 600",
+         "--format", "bestaudio[protocol=https][ext=m4a]/bestaudio[protocol=https][ext=webm]",
+         "--max-filesize", "50M", "--output", str(folder / "youtube.%(ext)s"),
+         "--", f"https://www.youtube.com/watch?v={video_id}"], 150)
+    for ext in ("m4a", "webm"):
+        source = folder / f"youtube.{ext}"
+        if source.is_file() and 0 < source.stat().st_size <= LIMIT:
+            return source
+    raise ValueError("No supported audio downloaded")
+
+
+def separate(job_id, folder, source, video_id):
     message = "Файлын дууг уншиж чадсангүй. Өөр файл оруулж үзээрэй."
     try:
+        if video_id:
+            message = (
+                "YouTube-ээс аудио авч чадсангүй. Нийтэд нээлттэй, 10 минут хүртэлх "
+                "бичлэгийн холбоос эсвэл аудио файл оруулна уу."
+            )
+            source = download_youtube(video_id, folder)
+            with lock:
+                write_job(job_id, {"status": "processing", "expires": time.time() + 3600})
+            message = "YouTube-ээс авсан аудиог уншиж чадсангүй."
         track = folder / "track.wav"
         run(["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file", "-format_whitelist",
-             "mp3,wav,flac,ogg,mov,mp4,m4a,3gp,3g2,mj2", "-i", str(source), "-map",
+             "mp3,wav,flac,ogg,mov,mp4,m4a,3gp,3g2,mj2,matroska,webm", "-i", str(source), "-map",
              "0:a:0", "-vn", "-ac", "2", "-ar", "44100", "-t", "601", str(track)], 90)
         source.unlink()
         # Stereo 16-bit PCM at 44.1 kHz, with room for the WAV header.
@@ -121,8 +168,12 @@ def separate(job_id, folder, source):
 def submit():
     upload = request.files.get("audio")
     ext = Path(upload.filename or "").suffix.lower() if upload else ""
-    if ext not in FORMATS or request.form.get("rights") != "yes":
-        return jsonify(error="Зөвшөөрөлтэй, дэмжигдсэн аудио эсвэл видео файл оруулна уу."), 400
+    link = request.form.get("youtube_url", "").strip()
+    video_id = youtube_video_id(link) if link else None
+    if link and (not video_id or upload):
+        return jsonify(error="YouTube бичлэгийн зөв холбоос оруулна уу."), 400
+    if (not video_id and ext not in FORMATS) or request.form.get("rights") != "yes":
+        return jsonify(error="Зөвшөөрөлтэй, аудио файл эсвэл YouTube холбоос оруулна уу."), 400
     if not slots.acquire(blocking=False):
         return jsonify(error="Сервер дуу боловсруулж байна. Түр хүлээгээд дахин оролдоно уу."), 429
     job_id = uuid4().hex
@@ -139,15 +190,21 @@ def submit():
             if sum(1 for _ in DATA_DIR.glob("*/job.json")) >= 150:
                 return jsonify(error="Серверийн хадгалах зай түр дүүрсэн байна."), 503
             folder.mkdir(mode=0o700)
-        source = folder / f"source{ext}"
-        upload.save(source)
-        if source.stat().st_size > LIMIT:
-            return oversized(None)
-        if source.stat().st_size == 0:
-            return jsonify(error="Файл хоосон байна."), 400
+        source = None
+        if not video_id:
+            source = folder / f"source{ext}"
+            upload.save(source)
+            size = source.stat().st_size
+            if size > LIMIT:
+                return oversized(None)
+            if not size:
+                return jsonify(error="Файл хоосон байна."), 400
         with lock:
-            write_job(job_id, {"status": "processing", "expires": time.time() + 3600})
-        Thread(target=separate, args=(job_id, folder, source), daemon=True).start()
+            write_job(job_id, {
+                "status": "downloading" if video_id else "processing",
+                "expires": time.time() + 3600,
+            })
+        Thread(target=separate, args=(job_id, folder, source, video_id), daemon=True).start()
         started = True
         return jsonify(id=job_id), 202
     finally:

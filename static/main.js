@@ -1,8 +1,10 @@
 const form = document.querySelector('#upload');
+const youtube = document.querySelector('#youtube');
+const jobButtons = [youtube.querySelector('button'), form.querySelector('button')];
 const audio = document.querySelector('#audio');
 const filename = document.querySelector('#filename');
 const drop = document.querySelector('#drop');
-const button = document.querySelector('#submit');
+let jobBusy = false;
 const status = document.querySelector('#status');
 const results = document.querySelector('#results');
 const checkout = document.querySelector('#checkout');
@@ -30,7 +32,7 @@ for (const event of ['dragenter', 'dragover', 'dragleave', 'drop']) {
   drop.addEventListener(event, e => {
     e.preventDefault();
     drop.classList.toggle('drag', event === 'dragenter' || event === 'dragover');
-    if (event === 'drop' && !button.disabled && e.dataTransfer.files.length) {
+    if (event === 'drop' && !jobBusy && !paymentBusy && e.dataTransfer.files.length) {
       const files = new DataTransfer();
       files.items.add(e.dataTransfer.files[0]);
       audio.files = files.files;
@@ -78,19 +80,29 @@ async function resumeJob(id) {
 }
 
 async function waitForJob(id) {
+  let lastStatus;
   let job = await resumeJob(id);
-  if (job.status === 'processing') announce('Хоолой, хөгжмийг салгаж байна. Хэдэн минут үргэлжилж болно.');
-  while (job.status === 'processing') {
+  while (['downloading', 'processing'].includes(job.status)) {
+    if (job.status !== lastStatus) {
+      announce(job.status === 'downloading' ? 'YouTube-ээс аудио авч байна…' :
+        'Хоолой, хөгжмийг салгаж байна. Хэдэн минут үргэлжилж болно.');
+      lastStatus = job.status;
+    }
     await pause(2000);
     job = await resumeJob(id);
   }
   return job;
 }
 
+function updateJobButtons() {
+  jobButtons.forEach(button => { button.disabled = jobBusy || paymentBusy; });
+}
+
 async function handlePayment(action) {
   if (!activeJob || paymentBusy) return;
   paymentBusy = true;
-  checkout.disabled = verifyPayment.disabled = button.disabled = true;
+  checkout.disabled = verifyPayment.disabled = true;
+  updateJobButtons();
   const id = activeJob;
   try {
     const result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
@@ -104,7 +116,8 @@ async function handlePayment(action) {
     paymentNotice.textContent = error.message;
   } finally {
     paymentBusy = false;
-    checkout.disabled = verifyPayment.disabled = button.disabled = false;
+    checkout.disabled = verifyPayment.disabled = false;
+    updateJobButtons();
   }
 }
 
@@ -115,25 +128,29 @@ const wireReturn = new URLSearchParams(location.search).get('wire');
 const linkedJob = new URLSearchParams(location.hash.slice(1)).get('job');
 const previousJob = /^[a-f0-9]{32}$/.test(linkedJob || '') ? linkedJob : localStorage.getItem(jobKey);
 if (previousJob) {
-  button.disabled = true;
+  jobBusy = true;
+  updateJobButtons();
   waitForJob(previousJob).then(job => {
     if (wireReturn === 'return' && job.payment_started && !job.paid) return handlePayment('verify-payment');
-  }).catch(error => announce(error.message, true)).finally(() => { button.disabled = false; });
+  }).catch(error => announce(error.message, true)).finally(() => { jobBusy = false; updateJobButtons(); });
 }
 if (wireReturn) history.replaceState(null, '', '/' + location.hash);
 
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  if (button.disabled) return;
-  if (audio.files[0].size > 50 * 1024 * 1024) {
+async function submitJob(event) {
+  event.preventDefault();
+  if (jobBusy || paymentBusy) return;
+  const inputForm = event.currentTarget;
+  const fromFile = inputForm === form;
+  if (fromFile && audio.files[0]?.size > 50 * 1024 * 1024) {
     announce('Файлын хэмжээ 50 МБ-аас хэтэрсэн байна.', true);
     return;
   }
-  const data = new FormData(form);
-  button.disabled = audio.disabled = true;
+  const data = new FormData(inputForm);
+  jobBusy = true;
+  updateJobButtons();
   results.hidden = true;
   results.querySelectorAll('audio').forEach(player => player.pause());
-  announce('Файл илгээж байна…');
+  announce(fromFile ? 'Файл илгээж байна…' : 'Холбоос шалгаж байна…');
   try {
     const {id} = await request('/api/jobs', {method: 'POST', body: data});
     localStorage.setItem(jobKey, id);
@@ -141,26 +158,13 @@ form.addEventListener('submit', async e => {
   } catch (error) {
     announce(error instanceof TypeError ? 'Холболт тасарлаа. Дахин оролдоно уу.' : error.message, true);
   } finally {
-    button.disabled = audio.disabled = false;
+    jobBusy = false;
+    updateJobButtons();
   }
-});
+}
 
-document.querySelector('#youtube').addEventListener('submit', e => {
-  e.preventDefault();
-  const message = document.querySelector('#link-error');
-  const url = new URL(document.querySelector('#link').value);
-  let id;
-  if (url.hostname === 'youtu.be') id = url.pathname.slice(1);
-  if (['www.youtube.com', 'youtube.com', 'm.youtube.com'].includes(url.hostname)) {
-    id = url.pathname === '/watch' ? url.searchParams.get('v') : url.pathname.match(/^\/(?:shorts|live)\/([^/]+)$/)?.[1];
-  }
-  if (!['https:', 'http:'].includes(url.protocol) || !/^[\w-]{11}$/.test(id || '')) {
-    message.textContent = 'YouTube бичлэгийн зөв холбоос оруулна уу.';
-    return;
-  }
-  message.textContent = '';
-  window.open('https://www.youtube.com/watch?v=' + id, '_blank', 'noopener,noreferrer');
-});
+form.addEventListener('submit', submitJob);
+youtube.addEventListener('submit', submitJob);
 
 const install = document.querySelector('#install');
 let installPrompt;

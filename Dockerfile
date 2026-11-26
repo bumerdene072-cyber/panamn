@@ -1,6 +1,8 @@
+FROM node:22-bookworm-slim AS javascript
 FROM python:3.11-slim-bookworm
 ENV PYTHONUNBUFFERED=1 TORCH_HOME=/home/app/.cache/torch OMP_NUM_THREADS=2 PORT=8080
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libsndfile1 && rm -rf /var/lib/apt/lists/* && useradd -m app
+COPY --from=javascript /usr/local/bin/node /usr/local/bin/node
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir torch==2.5.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu && pip install --no-cache-dir -r requirements.txt

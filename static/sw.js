@@ -1,4 +1,4 @@
-const SHELL = 'duu-salgagch-shell-v2';
+const SHELL = 'duu-salgagch-shell-v3';
 const OFFLINE = '/static/offline.html';
 const ASSETS = [
   OFFLINE, '/static/style.css', '/static/main.js', '/static/manifest.webmanifest',

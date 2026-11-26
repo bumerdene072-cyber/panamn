@@ -23,7 +23,7 @@
 <script defer src="/static/main.js?v=18"></script>
 </head>
 <body>
-<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><div class="top-actions"><a href="/help">Тусламж</a><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
+<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
 <main>
   <section class="intro">
     <div class="hero-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
@@ -113,5 +113,42 @@
     </dialog>
   </section>
 </main>
+<style>
+#help-widget{position:fixed;right:max(1rem,env(safe-area-inset-right));bottom:max(1rem,env(safe-area-inset-bottom));z-index:20}
+#help-toggle,#help-close{min-height:44px;border-radius:999px;padding:.6rem 1rem}
+#help-toggle{display:flex;align-items:center;gap:.5rem;background:var(--accent);color:var(--accent-text);margin-left:auto;box-shadow:var(--shadow)}
+#help-panel{position:absolute;bottom:calc(100% + .6rem);right:0;width:min(24rem,calc(100vw - 2rem));height:min(31rem,calc(100dvh - 5.5rem));display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:1rem;background:var(--surface);box-shadow:var(--shadow)}
+#help-panel header{display:flex;align-items:center;justify-content:space-between;padding:.3rem .7rem .3rem 1rem;border-bottom:1px solid var(--line)}
+#help-frame{display:block;flex:1;width:100%;min-height:0;border:0}
+</style>
+<div id="help-widget">
+  <section id="help-panel" aria-label="Тусламж чат" hidden>
+    <header><strong>Тусламж</strong><button id="help-close" type="button" aria-label="Чат хаах">✕</button></header>
+    <iframe id="help-frame" title="PANAMN.SITE тусламж чат"></iframe>
+  </section>
+  <button id="help-toggle" type="button" aria-controls="help-panel" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-1-2V6a2 2 0 0 1 2-2Z"/></svg>
+    Тусламж
+  </button>
+</div>
+<script>
+{
+  const button = document.getElementById('help-toggle');
+  const panel = document.getElementById('help-panel');
+  const close = document.getElementById('help-close');
+  const frame = document.getElementById('help-frame');
+  function setOpen(open) {
+    panel.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    if (open && !frame.hasAttribute('src')) frame.src = '/help';
+    (open ? close : button).focus();
+  }
+  button.addEventListener('click', () => setOpen(panel.hidden));
+  close.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !panel.hidden) setOpen(false);
+  });
+}
+</script>
 </body>
 </html>

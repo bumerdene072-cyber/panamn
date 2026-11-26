@@ -409,6 +409,11 @@ checkout.addEventListener('click', () => handlePayment('checkout'));
 verifyPayment.addEventListener('click', () => handlePayment('verify-payment'));
 
 for (const audio of results.querySelectorAll('audio')) {
+  audio.addEventListener('playing', () => {
+    if (activeJob) void fetch('/api/jobs/' + activeJob + '/preview-play', {
+      method: 'POST', keepalive: true
+    }).catch(() => {});
+  });
   audio.addEventListener('play', () => {
     for (const other of results.querySelectorAll('audio')) {
       if (other !== audio) other.pause();

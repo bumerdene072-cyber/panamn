@@ -274,6 +274,48 @@ def payment(job_id):
         payment_lock.release()
 
 
+@app.post("/api/wire/webhook")
+def wire_webhook():
+    secret = os.environ.get("WIRE_WEBHOOK_SECRET")
+    if not secret or not wire.configured():
+        return "", 503
+    request.max_content_length = 64 * 1024
+    try:
+        event = wire.verify_webhook(
+            request.get_data(), request.headers.get("WirePayment-Signature", ""), secret,
+        )
+    except ValueError:
+        return "", 400
+    if event.get("type") != "payment_intent.succeeded":
+        return "", 204
+    data = event.get("data")
+    if not isinstance(data, dict) or data.get("object") != "payment_intent":
+        return "", 400
+    intent_id = data.get("id")
+    if not isinstance(intent_id, str) or not re.fullmatch(r"pi_[A-Za-z0-9]+", intent_id):
+        return "", 400
+    if not payment_lock.acquire(blocking=False):
+        return "", 429
+    try:
+        intent = wire.get_intent(intent_id)
+        metadata = intent.get("metadata")
+        job_id = metadata.get("order_id") if isinstance(metadata, dict) else None
+        if not isinstance(job_id, str):
+            return "", 204
+        with lock:
+            job = read_job(job_id)
+        if not job or job.get("intent") != intent_id or job.get("paid"):
+            return "", 204
+        if wire.verify(intent, intent_id, job_id) == "succeeded":
+            mark_paid(job_id, job)
+            return "", 204
+        return "", 503
+    except wire.WireError:
+        return "", 502
+    finally:
+        payment_lock.release()
+
+
 @app.get("/api/jobs/<job_id>/<variant>/<stem>")
 def result(job_id, variant, stem):
     with lock:

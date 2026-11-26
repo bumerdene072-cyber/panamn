@@ -1,6 +1,8 @@
+import hmac
 import json
 import os
 import re
+import time
 from urllib.error import URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -62,8 +64,27 @@ def create_intent(job_id, key):
     return intent_id
 
 
+def get_intent(intent_id):
+    if not isinstance(intent_id, str) or not re.fullmatch(r"pi_[A-Za-z0-9]+", intent_id):
+        raise WireError("Invalid payment intent ID")
+    return call("payment_intents/" + intent_id)
+
+
 def payment_status(intent_id, job_id):
-    return verify(call("payment_intents/" + intent_id), intent_id, job_id)
+    return verify(get_intent(intent_id), intent_id, job_id)
+
+
+def verify_webhook(body, signature, secret):
+    match = re.fullmatch(r"t=([0-9]{1,12}),\s*v1=([a-f0-9]{64})", signature)
+    if match is None or abs(time.time() - int(match[1])) > 300:
+        raise ValueError("Invalid Wire signature timestamp")
+    expected = hmac.digest(secret.encode(), match[1].encode() + b"." + body, "sha256")
+    if not hmac.compare_digest(expected, bytes.fromhex(match[2])):
+        raise ValueError("Invalid Wire signature")
+    event = json.loads(body)
+    if not isinstance(event, dict) or event.get("object") != "event":
+        raise ValueError("Invalid Wire event")
+    return event
 
 
 def create_checkout(intent_id, job_id, key):

@@ -6,6 +6,7 @@ services:
       DATA_DIR: /data
       PUBLIC_ORIGIN: https://${PUBLIC_HOST:?Set PUBLIC_HOST in .env}
       WIRE_API_KEY: ${WIRE_API_KEY:-}
+      WIRE_WEBHOOK_SECRET: ${WIRE_WEBHOOK_SECRET:-}
     volumes:
       - jobs:/data
   https:

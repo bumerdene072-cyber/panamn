@@ -18,6 +18,7 @@ from zipfile import BadZipFile, ZipFile
 from flask import Flask, jsonify, request, send_file
 
 import wire
+from telegram_notify import count_visit
 from yt import YouTubeImportError, download_youtube, read_youtube_cache, store_youtube_cache
 from yt import resolve as youtube_video_id
 
@@ -41,7 +42,18 @@ ACTIVE_STATUSES = {"downloading", "processing"}
 
 @app.get("/")
 def home():
-    return app.send_static_file("index.html")
+    response = app.send_static_file("index.html")
+    if request.method == "GET":
+        browser = request.cookies.get("panamn_visit", "")
+        if not re.fullmatch(r"[a-f0-9]{32}", browser):
+            browser = secrets.token_hex(16)
+            response.set_cookie("panamn_visit", browser, max_age=30 * 86400,
+                                secure=True, httponly=True, samesite="Lax")
+        try:
+            count_visit(DATA_DIR, browser)
+        except sqlite3.Error:
+            logging.warning("Could not record visit")
+    return response
 
 
 @app.get("/robots.txt")
@@ -415,7 +427,7 @@ def status(job_id):
 
 
 def mark_paid(job_id, job):
-    job.update(paid=True, expires=time.time() + PAID_RETENTION)
+    job.update(paid=True, paid_at=time.time(), expires=time.time() + PAID_RETENTION)
     with lock:
         write_job(job_id, job)
 
@@ -492,8 +504,9 @@ def payment(job_id):
         if not intent or state == "canceled":
             attempt = job.get("attempt", 0) + 1
             key = f"{job_id}-{attempt}"
-            intent = wire.create_intent(job_id, f"{key}-intent", wire_order_number(job_id))
-            job.update(intent=intent, attempt=attempt, checkout_url=None,
+            number = wire_order_number(job_id)
+            intent = wire.create_intent(job_id, f"{key}-intent", number)
+            job.update(intent=intent, attempt=attempt, checkout_url=None, order_number=number,
                        order_deadline=job.get("order_deadline", job["expires"]),
                        expires=time.time() + PAID_RETENTION)
             with lock:

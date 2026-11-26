@@ -141,6 +141,7 @@
     panel.hidden = !open;
     button.setAttribute('aria-expanded', String(open));
     if (open && !frame.hasAttribute('src')) frame.src = '/help';
+    if (!open) frame.removeAttribute('src');
     (open ? close : button).focus();
   }
   button.addEventListener('click', () => setOpen(panel.hidden));

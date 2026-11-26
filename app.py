@@ -40,6 +40,13 @@ def home():
     return app.send_static_file("index.html")
 
 
+@app.get("/robots.txt")
+@app.get("/sitemap.xml")
+@app.get("/154003ae71974b419fc2035e9026e3e0.txt")
+def crawler_file():
+    return app.send_static_file(request.path[1:])
+
+
 @app.get("/sw.js")
 def service_worker():
     response = app.send_static_file("sw.js")

@@ -43,3 +43,12 @@ docker compose up -d --build
 `PANAMN_SOURCE_DIR`-д PANAMN процесс унших эрхтэй тусдаа хавтас заана. Боловсруулж, хэрэглэгчдэд MP3-аар түгээх зөвшөөрөлтэй эх файлыг тухайн бичлэгийн 11 тэмдэгт ID-аар нэрлэнэ. Жишээ нь `BaW_jenozKc.mp3`. Нэг ID-д нэг эх файл байршуулна. Хавтас дотор түр нэрээр хуулж дуусаад эцсийн нэр рүү шилжүүлнэ.
 
 Бүртгэлтэй эх файл байвал PANAMN YouTube-ээс дахин татахгүй. YouTube линк оруулсан хэрэглэгч уг файлыг үнэгүй MP3 болгон авах эсвэл хоолой, аяыг салгах боломжтой. Эх файлыг 50 МБ, 10 минутын хязгаарт багтаана.
+
+### Optional Apify fallback
+
+Set `APIFY_API_TOKEN` in the app service's environment to enable the
+API Ninja YouTube Video Downloader fallback on YouTube bot checks or HTTP 403.
+Keep the token server-side. Docker Compose passes it through from the deployment
+environment. The Actor receives one canonical YouTube URL per run, with a
+60-second run timeout and a requested cap of $0.15 per run. Monitor the account's
+usage separately. Successful imports use the existing audio cache.

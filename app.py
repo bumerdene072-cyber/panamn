@@ -2,8 +2,10 @@ import json
 import logging
 import os
 import re
+from contextlib import closing
 from pathlib import Path
 import shutil
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -417,6 +419,13 @@ def mark_paid(job_id, job):
         write_job(job_id, job)
 
 
+def wire_order_number(job_id):
+    with closing(sqlite3.connect(DATA_DIR / "wire-orders.sqlite3")) as db, db:
+        db.execute("CREATE TABLE IF NOT EXISTS orders (number INTEGER PRIMARY KEY, job_id TEXT NOT NULL UNIQUE)")
+        db.execute("INSERT INTO orders (job_id) VALUES (?) ON CONFLICT(job_id) DO NOTHING", (job_id,))
+        return db.execute("SELECT number FROM orders WHERE job_id = ?", (job_id,)).fetchone()[0]
+
+
 @app.post("/api/jobs/<job_id>/checkout")
 @app.post("/api/jobs/<job_id>/verify-payment")
 def payment(job_id):
@@ -469,7 +478,7 @@ def payment(job_id):
         if not intent or state == "canceled":
             attempt = job.get("attempt", 0) + 1
             key = f"{job_id}-{attempt}"
-            intent = wire.create_intent(job_id, f"{key}-intent")
+            intent = wire.create_intent(job_id, f"{key}-intent", wire_order_number(job_id))
             job.update(intent=intent, attempt=attempt, checkout_url=None,
                        order_deadline=job.get("order_deadline", job["expires"]),
                        expires=time.time() + PAID_RETENTION)

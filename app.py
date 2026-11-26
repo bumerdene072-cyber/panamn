@@ -19,7 +19,7 @@ from flask import Flask, jsonify, request, send_file
 
 import wire
 from support_chat import support
-from telegram_notify import count_visit
+from telegram_notify import SOURCES, count_visit, track_stage
 from yt import YouTubeImportError, download_youtube, read_youtube_cache, store_youtube_cache
 from yt import resolve as youtube_video_id
 
@@ -42,6 +42,11 @@ WORKER_ID = uuid4().hex
 ACTIVE_STATUSES = {"downloading", "processing"}
 
 
+def campaign_source():
+    source = request.cookies.get("panamn_source", "direct")
+    return source if source in SOURCES else "direct"
+
+
 @app.get("/")
 def home():
     response = app.send_static_file("index.html")
@@ -53,6 +58,12 @@ def home():
                                 secure=True, httponly=True, samesite="Lax")
         try:
             count_visit(DATA_DIR, browser)
+            campaign = request.args.get("utm_source")
+            source = campaign if campaign in SOURCES else campaign_source()
+            if campaign in SOURCES:
+                response.set_cookie("panamn_source", source, max_age=30 * 86400,
+                                    secure=True, httponly=True, samesite="Lax")
+            track_stage(DATA_DIR, "visit", browser, source)
         except sqlite3.Error:
             logging.warning("Could not record visit")
     return response
@@ -405,6 +416,8 @@ def submit():
             })
         Thread(target=process_audio, args=(job_id, folder, source, video_id, operation), daemon=True).start()
         started = True
+        if operation == "separate":
+            track_stage(DATA_DIR, "started", job_id, campaign_source())
         return jsonify(id=job_id), 202
     finally:
         if not started:
@@ -432,6 +445,7 @@ def mark_paid(job_id, job):
     job.update(paid=True, paid_at=time.time(), expires=time.time() + PAID_RETENTION)
     with lock:
         write_job(job_id, job)
+    track_stage(DATA_DIR, "paid", job_id)
 
 
 def wire_order_number(job_id):
@@ -452,6 +466,16 @@ def wire_order_number(job_id):
             if existing:
                 return existing[0]
         raise wire.WireError("Could not reserve a unique order number")
+
+
+@app.post("/api/jobs/<job_id>/preview-play")
+def preview_play(job_id):
+    with lock:
+        job = read_job(job_id)
+    if not job or job["status"] != "ready" or job.get("operation") == "convert":
+        return "", 404
+    track_stage(DATA_DIR, "preview", job_id)
+    return "", 204
 
 
 @app.post("/api/jobs/<job_id>/checkout")
@@ -484,6 +508,7 @@ def payment(job_id):
         if intent and state != "canceled" and existing and not expired:
             url = wire.open_checkout(existing, intent)
             if url:
+                track_stage(DATA_DIR, "checkout", job_id)
                 return jsonify(paid=False, url=url)
         if intent and state in ("requires_action", "requires_payment_method") and (expired or existing):
             try:
@@ -517,6 +542,7 @@ def payment(job_id):
             job["checkout_url"] = wire.create_checkout(intent, job_id, f'{job_id}-{job["attempt"]}-checkout')
             with lock:
                 write_job(job_id, job)
+        track_stage(DATA_DIR, "checkout", job_id)
         return jsonify(paid=False, url=job["checkout_url"])
     except wire.WireError as error:
         logging.warning("Wire checkout failed (HTTP %s): %s", error.status, error)

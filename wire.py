@@ -92,8 +92,8 @@ def create_checkout(intent_id, job_id, key):
     origin = os.environ["PUBLIC_ORIGIN"].rstrip("/")
     result = call("checkout/sessions", {
         "payment_intent": intent_id,
-        "success_url": f"{origin}/?wire=return#job={job_id}",
-        "cancel_url": f"{origin}/?wire=cancel#job={job_id}",
+        "success_url": f"{origin}/?wire=return&job={job_id}",
+        "cancel_url": f"{origin}/?wire=cancel&job={job_id}",
     }, key)
     url = result.get("url", "")
     if result.get("payment_intent") != intent_id or not isinstance(url, str) or not re.fullmatch(

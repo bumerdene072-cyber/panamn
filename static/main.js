@@ -277,6 +277,29 @@ function updateJobButtons() {
 
 let paymentWatch;
 let paymentWindow;
+const checkoutLink = document.querySelector('#checkout-link');
+let paymentCheckInProgress = false;
+
+async function confirmPayment(id, queryProvider) {
+  if (activeJob !== id || paymentCheckInProgress) return false;
+  paymentCheckInProgress = true;
+  try {
+    let job = await request('/api/jobs/' + id);
+    if (!job.paid && queryProvider && job.payment_started) {
+      const result = await request('/api/jobs/' + id + '/verify-payment', {method: 'POST'});
+      if (result.paid) job = await request('/api/jobs/' + id);
+    }
+    if (job.paid) finishPayment(job, id);
+    return job.paid;
+  } finally {
+    paymentCheckInProgress = false;
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  const id = pendingPayment();
+  if (!document.hidden && id) void confirmPayment(id, true).catch(() => {});
+});
 const pendingPaymentKey = 'panamn:pending-payment';
 
 function rememberPayment(id) {
@@ -316,13 +339,7 @@ async function watchPayment(id, now = false) {
     if (!now) await pause(1500);
     while (activeJob === id && Date.now() < end) {
       try {
-        let job = await request('/api/jobs/' + id);
-        if (job.paid || (job.payment_started && count++ % 2 === 0 &&
-            (await request('/api/jobs/' + id + '/verify-payment', {method: 'POST'})).paid)) {
-          job = job.paid ? job : await request('/api/jobs/' + id);
-          finishPayment(job, id);
-          return;
-        }
+        if (await confirmPayment(id, count++ % 2 === 0)) return;
       } catch {
         // Webhook or provider verification may still succeed on the next poll.
       }
@@ -349,13 +366,15 @@ async function handlePayment(action) {
     const result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
     if (result.url) {
       rememberPayment(id);
+      checkoutLink.href = result.url;
+      checkoutLink.hidden = false;
       if (!paymentWindow || paymentWindow.closed) {
-        location.assign(result.url);
-        return;
+        paymentNotice.textContent = 'QPay цонх нээгдээгүй бол доорх холбоосоор төлбөрөө нээнэ үү.';
+      } else {
+        paymentWindow.location = result.url;
+        paymentNotice.textContent = 'QPay шинэ цонхонд нээгдлээ. Төлбөр төлсний дараа таталт автоматаар эхэлнэ.';
       }
-      paymentWindow.location = result.url;
       verifyPayment.hidden = false;
-      paymentNotice.textContent = 'QPay шинэ цонхонд нээгдлээ. Төлбөр төлсний дараа таталт автоматаар эхэлнэ.';
       void watchPayment(id);
     } else if (result.paid) {
       if (opening) paymentWindow?.close();
@@ -386,6 +405,8 @@ for (const audio of results.querySelectorAll('audio')) {
 }
 
 function clearJob() {
+  checkoutLink.hidden = true;
+  checkoutLink.removeAttribute('href');
   rememberPayment(null);
   activeJob = null;
   form.reset();
@@ -418,7 +439,7 @@ newJob.addEventListener('click', () => {
 for (const link of [convertedDownload, downloadAll]) {
   link.addEventListener('click', event => {
     // Keep a manual retry available after an automatic checkout download.
-    if (event.isTrusted && activeJob) {
+    if (event.isTrusted && activeJob && link === convertedDownload) {
       const downloadedJob = activeJob;
       setTimeout(() => {
         if (activeJob === downloadedJob && !jobBusy && !paymentBusy) clearJob();
@@ -433,7 +454,8 @@ window.addEventListener('pageshow', event => {
 });
 
 const wireReturn = new URLSearchParams(location.search).get('wire');
-const linkedJob = new URLSearchParams(location.hash.slice(1)).get('job');
+const linkedJob = new URLSearchParams(location.search).get('job') ||
+  new URLSearchParams(location.hash.slice(1)).get('job');
 const returning = ['return', 'cancel'].includes(wireReturn);
 const restoredJob = returning ? linkedJob : pendingPayment();
 if (/^[a-f0-9]{32}$/.test(restoredJob || '')) {

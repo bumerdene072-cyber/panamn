@@ -116,7 +116,10 @@ function showJob(job, id) {
 async function resumeJob(id) {
   const job = await request('/api/jobs/' + id);
   if (job.status === 'ready') showJob(job, id);
-  if (job.status === 'failed') throw new Error(job.error);
+  if (job.status === 'failed') {
+    if (localStorage.getItem(jobKey) === id) localStorage.removeItem(jobKey);
+    throw new Error(job.error);
+  }
   return job;
 }
 
@@ -178,7 +181,10 @@ if (previousJob) {
   updateJobButtons();
   waitForJob(previousJob).then(job => {
     if (wireReturn === 'return' && job.payment_started && !job.paid) return handlePayment('verify-payment', 4);
-  }).catch(error => announce(error.message, true)).finally(() => { jobBusy = false; updateJobButtons(); });
+  }).catch(error => {
+    if (linkedJob) announce(error.message, true);
+    if (localStorage.getItem(jobKey) === previousJob) localStorage.removeItem(jobKey);
+  }).finally(() => { jobBusy = false; updateJobButtons(); });
 }
 if (wireReturn) history.replaceState(null, '', '/' + location.hash);
 

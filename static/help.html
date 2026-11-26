@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="mn">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тусламж · PANAMN.SITE</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+main{max-width:44rem;margin:auto;padding:1rem} #history{display:grid;gap:.65rem;max-height:55vh;overflow:auto;min-height:10rem;padding:.5rem}
+.bubble{overflow-wrap:anywhere;white-space:pre-wrap;background:var(--soft);border-radius:1rem;padding:.65rem 1rem;max-width:86%;margin:0;justify-self:start}
+.bubble.out{background:var(--accent);color:var(--accent-text);justify-self:end}
+textarea{width:100%;min-height:5rem;padding:.7rem;font:inherit;color:var(--text);background:var(--surface);border:1px solid var(--line);border-radius:.7rem}
+</style>
+<header class="top"><a class="brand" href="/">PANAMN.SITE</a></header>
+<main class="panel">
+<h1>Тусламж</h1>
+<p>Асуултаа бичээрэй. Хариу энэ чатад ирнэ. Нууц үг, банкны мэдээлэл битгий оруулаарай.</p>
+<section id="history" role="log" aria-label="Чатын мессежүүд"></section>
+<form id="chat-form">
+<label for="message">Мессеж</label>
+<textarea id="message" maxlength="1000" required></textarea>
+<button id="send" type="submit" disabled>Илгээх</button>
+<p id="notice" role="status"></p>
+</form>
+</main>
+<script>
+const form = document.querySelector('#chat-form');
+const field = document.querySelector('#message');
+const send = document.querySelector('#send');
+const notice = document.querySelector('#notice');
+const historyPanel = document.querySelector('#history');
+let previous = '';
+let busy = false;
+async function refresh(text) {
+  const options = text === undefined ? {} : {method:'POST',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({text})};
+  const response = await fetch('/api/support', {...options, cache:'no-store'});
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || 'Холболт тасарлаа. Дахин оролдоно уу.');
+  const snapshot = JSON.stringify(data.messages);
+  if (snapshot !== previous) {
+    previous = snapshot;
+    historyPanel.replaceChildren(...data.messages.map(item => {
+      const p = document.createElement('p');
+      p.className = 'bubble ' + item.direction;
+      p.textContent = item.body;
+      return p;
+    }));
+    historyPanel.scrollTop = historyPanel.scrollHeight;
+  }
+  send.disabled = false;
+}
+async function poll() {
+  if (!busy) {
+    busy = true;
+    try { await refresh(); } catch { notice.textContent = 'Чаттай дахин холбогдож байна…'; }
+    finally { busy = false; }
+  }
+  setTimeout(poll, 4000);
+}
+form.addEventListener('submit', async event => {
+  event.preventDefault();
+  if (busy || !field.value.trim()) return;
+  busy = true;
+  send.disabled = true;
+  try { await refresh(field.value); field.value = ''; notice.textContent = 'Мессеж илгээгдлээ.'; }
+  catch (error) { notice.textContent = error.message; }
+  finally { busy = false; send.disabled = false; }
+});
+poll();
+</script>
+</html>

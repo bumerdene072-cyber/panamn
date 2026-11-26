@@ -7,10 +7,10 @@
 <meta name="description" content="YouTube холбоос, MP3 эсвэл MP4 файлаас дуучны хоолой, хөгжмийг салга.">
 <title>PANAMN — Дуу салгагч</title>
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=7">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=7">
-<link rel="stylesheet" href="/static/style.css?v=7">
-<script defer src="/static/main.js?v=7"></script>
+<link rel="icon" href="/static/icon-192.png?v=8">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=8">
+<link rel="stylesheet" href="/static/style.css?v=8">
+<script defer src="/static/main.js?v=8"></script>
 </head>
 <body>
 <header class="top"><a class="brand" href="/" aria-label="PANAMN нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
@@ -27,7 +27,7 @@
     </div>
     <form id="youtube">
       <label for="link">YouTube холбоос</label>
-      <input id="link" name="youtube_url" type="url" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="https://youtu.be/…">
+      <input id="link" name="youtube_url" type="text" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="YouTube холбоосоо хуулж оруулна уу">
       <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
       <button class="primary" type="submit">Дуу салгах <span aria-hidden="true">→</span></button>
     </form>
@@ -51,10 +51,11 @@
         <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
         <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download hidden>Instrumental татах · MP3</a></article>
       </div>
+      <a id="download-all" class="download-all" download hidden>Хоёр MP3 татах · ZIP ↓</a>
       <div id="payment">
-        <strong>Бүтэн хоолой + хөгжим · <span id="price"></span>₮</strong>
+        <div class="payment-heading"><strong>Бүтэн хоолой + хөгжим</strong><span><b id="price"></b>₮</span></div>
         <div class="payment-actions">
-          <button id="checkout" type="button" hidden>Wire-ээр төлөх</button>
+          <button id="checkout" class="qpay" type="button" hidden><span class="qpay-icon" aria-hidden="true">▦</span> QPay төлөх <span aria-hidden="true">→</span></button>
           <button id="verify-payment" type="button" hidden>Төлбөр шалгах</button>
         </div>
         <p id="payment-notice" role="status"></p>

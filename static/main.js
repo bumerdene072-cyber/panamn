@@ -12,6 +12,7 @@ const verifyPayment = document.querySelector('#verify-payment');
 const paymentNotice = document.querySelector('#payment-notice');
 const paymentPanel = document.querySelector('#payment');
 const price = document.querySelector('#price');
+const downloadAll = document.querySelector('#download-all');
 const jobKey = 'duu-salgagch-current-job';
 let activeJob = null;
 let paymentBusy = false;
@@ -103,6 +104,8 @@ function showJob(job, id) {
     link.hidden = !job.paid;
   });
   price.textContent = new Intl.NumberFormat('mn-MN').format(job.amount);
+  downloadAll.href = url + "/download";
+  downloadAll.hidden = !job.paid;
   paymentPanel.hidden = job.paid;
   checkout.hidden = !job.payment_available;
   verifyPayment.hidden = !job.payment_available || !job.payment_started;
@@ -176,12 +179,13 @@ async function handlePayment(action, attempts = 1) {
       return;
     }
     for (let attempt = 1; attempt < attempts && !result.paid; attempt++) {
-      paymentNotice.textContent = 'Wire төлбөрийг баталгаажуулж байна…';
+      paymentNotice.textContent = 'QPay төлбөрийг баталгаажуулж байна…';
       await pause(2000);
       result = await request('/api/jobs/' + id + '/' + action, {method: 'POST'});
     }
     await resumeJob(id);
-    if (!result.paid) paymentNotice.textContent = 'Төлбөр хараахан баталгаажаагүй байна. Түр хүлээгээд дахин шалгана уу.';
+    if (result.paid) downloadAll.click();
+    else paymentNotice.textContent = 'Төлбөр хараахан баталгаажаагүй байна. Түр хүлээгээд дахин шалгана уу.';
   } catch (error) {
     paymentNotice.textContent = error.message;
   } finally {
@@ -201,7 +205,9 @@ if (previousJob) {
   jobBusy = true;
   updateJobButtons();
   waitForJob(previousJob).then(job => {
-    if (wireReturn === 'return' && job.payment_started && !job.paid) return handlePayment('verify-payment', 4);
+    if (wireReturn !== 'return' || !job.payment_started) return;
+    if (job.paid) downloadAll.click();
+    else return handlePayment('verify-payment', 8);
   }).catch(error => {
     if (linkedJob) announce(error.message, true);
     if (localStorage.getItem(jobKey) === previousJob) localStorage.removeItem(jobKey);

@@ -56,6 +56,7 @@ def create_intent(job_id, key):
     intent = call("payment_intents", {
         "amount": PRICE, "currency": "MNT", "description": "Дуу Салгагч — бүтэн таталт",
         "metadata": {"order_id": job_id},
+        "allowed_operators": ["qpay"],
     }, key)
     intent_id = intent.get("id", "")
     if not isinstance(intent_id, str) or not re.fullmatch(r"pi_[A-Za-z0-9]+", intent_id):

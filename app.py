@@ -10,6 +10,7 @@ import time
 from threading import BoundedSemaphore, Lock, Thread
 from urllib.parse import parse_qs, urlsplit
 from uuid import UUID, uuid4
+from zipfile import ZipFile
 
 from flask import Flask, jsonify, request, send_file
 
@@ -89,19 +90,26 @@ def run(command, timeout):
 def youtube_video_id(link):
     if len(link) > 2048:
         return None
+    link = link.strip()
+    shared = re.search(r"https?://[^\s<>]+", link, re.IGNORECASE)
+    if shared:
+        link = shared[0].rstrip(").,]")
+    elif "://" not in link:
+        link = "https://" + link
     try:
-        url = urlsplit(link.strip())
+        url = urlsplit(link)
         if url.scheme not in {"http", "https"} or url.username or url.password or url.port:
             return None
     except ValueError:
         return None
     if url.hostname == "youtu.be":
         video_id = url.path.strip("/")
-    elif url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com"}:
+    elif url.hostname in {"youtube.com", "www.youtube.com", "m.youtube.com", "music.youtube.com",
+                         "youtube-nocookie.com", "www.youtube-nocookie.com"}:
         if url.path == "/watch":
             video_id = parse_qs(url.query).get("v", [""])[0]
         else:
-            match = re.fullmatch(r"/(?:shorts|live|embed)/([^/]+)/?", url.path)
+            match = re.fullmatch(r"/(?:shorts|live|embed|v)/([^/]+)/?", url.path)
             video_id = match[1] if match else ""
     else:
         return None
@@ -388,6 +396,31 @@ def wire_webhook():
         return "", 502
     finally:
         payment_lock.release()
+
+
+@app.get("/api/jobs/<job_id>/download")
+def download_bundle(job_id):
+    with lock:
+        job = read_job(job_id)
+        if not job or job["status"] != "ready":
+            return jsonify(error="Аудио файл олдсонгүй."), 404
+        if not job.get("paid"):
+            return jsonify(error="Төлбөрөө баталгаажуулна уу."), 402
+    track = DATA_DIR / job_id / "htdemucs" / "track"
+    archive = tempfile.TemporaryFile()
+    try:
+        with ZipFile(archive, "w") as bundle:
+            for stem, name in STEMS.items():
+                bundle.write(track / f"{name}.mp3", f"{stem}.mp3")
+        archive.seek(0)
+        return send_file(archive, mimetype="application/zip", as_attachment=True,
+                         download_name="PANAMN-MP3.zip", max_age=0)
+    except FileNotFoundError:
+        archive.close()
+        return jsonify(error="Аудио файл олдсонгүй."), 404
+    except Exception:
+        archive.close()
+        raise
 
 
 @app.get("/api/jobs/<job_id>/<variant>/<stem>")

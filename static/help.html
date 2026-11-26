@@ -33,12 +33,15 @@ const notice = document.querySelector('#notice');
 const historyPanel = document.querySelector('#history');
 let previous = '';
 let busy = false;
+let chat = '';
 async function refresh(text) {
   const options = text === undefined ? {} : {method:'POST',
     headers:{'Content-Type':'application/json'},body:JSON.stringify({text})};
-  const response = await fetch('/api/support', {...options, cache:'no-store'});
+  const response = await fetch('/api/support', {...options,
+    headers:{...options.headers, ...(chat ? {'X-Support-Chat': chat} : {})}, cache:'no-store'});
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Холболт тасарлаа. Дахин оролдоно уу.');
+  if (data.chat) chat = data.chat;
   const snapshot = JSON.stringify(data.messages);
   if (snapshot !== previous) {
     previous = snapshot;

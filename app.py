@@ -18,11 +18,13 @@ from zipfile import BadZipFile, ZipFile
 from flask import Flask, jsonify, request, send_file
 
 import wire
+from support_chat import support
 from telegram_notify import count_visit
 from yt import YouTubeImportError, download_youtube, read_youtube_cache, store_youtube_cache
 from yt import resolve as youtube_video_id
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
+app.register_blueprint(support)
 app.config["MAX_CONTENT_LENGTH"] = 51 * 1024 * 1024
 LIMIT = 50 * 1024 * 1024
 RETENTION = 24 * 3600

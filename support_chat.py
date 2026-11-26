@@ -37,9 +37,9 @@ def help_page():
 
 @support.route("/api/support", methods=["GET", "POST"])
 def messages():
-    chat = request.cookies.get("panamn_support", "")
-    issue_cookie = not re.fullmatch(r"[a-f0-9]{48}", chat)
-    if issue_cookie:
+    chat = request.headers.get("X-Support-Chat", "")
+    new_chat = not re.fullmatch(r"[a-f0-9]{48}", chat)
+    if new_chat:
         if request.method == "POST":
             return jsonify(error="Чатыг дахин нээгээд оролдоно уу."), 409
         chat = secrets.token_hex(24)
@@ -67,9 +67,9 @@ def messages():
         ).fetchall()
     response = jsonify(messages=[dict(row) for row in rows])
     response.cache_control.no_store = True
-    if issue_cookie:
-        response.set_cookie("panamn_support", chat, max_age=30 * 86400,
-                            secure=True, httponly=True, samesite="Strict")
+    if new_chat:
+        response = jsonify(chat=chat, messages=[])
+        response.cache_control.no_store = True
     return response
 
 

@@ -12,6 +12,7 @@ from urllib.request import Request, urlopen
 from zoneinfo import ZoneInfo
 
 from wire import PRICE
+from telegram_notify import database, funnel_summary
 
 from flask import Blueprint, jsonify, request, send_from_directory
 
@@ -78,14 +79,14 @@ def messages():
 
 
 
-COMMANDS = {"menu":"Админы цэс","stats":"Өнөөдрийн зочлол, төлбөр","site":"Сайтын төлөв","support":"Тусламжийн чат"}
-BUTTONS = {"📊 Өнөөдөр":"stats","🌐 Сайтын төлөв":"site","💬 Тусламж":"support","☰ Цэс":"menu"}
+COMMANDS = {"menu":"Админы цэс","stats":"Өнөөдрийн зочлол, төлбөр","site":"Сайтын төлөв","support":"Тусламжийн чат","funnel":"Сувгаар борлуулалтын явц"}
+BUTTONS = {"📊 Өнөөдөр":"stats","🌐 Сайтын төлөв":"site","💬 Тусламж":"support","☰ Цэс":"menu","📈 Борлуулалтын явц":"funnel"}
 
 
 def admin_response(command, db):
     if command == "menu":
         keys = list(BUTTONS)
-        keyboard = [[{"text": key} for key in keys[i:i+2]] for i in (0, 2)]
+        keyboard = [[{"text": key} for key in keys[i:i+2]] for i in range(0, len(keys), 2)]
         return {"text":"PANAMN.SITE · Админы цэс\nХэрэглэгчийн мессежид Reply дарж хариулаарай.",
                 "reply_markup":{"keyboard":keyboard,"resize_keyboard":True}}
     if command == "site":
@@ -119,6 +120,9 @@ def admin_response(command, db):
                 paid += datetime.fromtimestamp(stamp, zone).date() == today
         except (OSError, ValueError, OverflowError):
             continue
+    if command == "funnel":
+        with closing(database(directory)) as connection:
+            return {"text": funnel_summary(connection, today.isoformat(), visits, paid)}
     return {"text":f"📊 {today} · Улаанбаатар\nЗочилсон хөтөч: {visits}\nБаталгаажсан төлбөр: {paid}\nНийт төлбөр: {paid*PRICE:,}₮"}
 
 

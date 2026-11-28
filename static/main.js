@@ -25,13 +25,6 @@ const verifyPayment = document.querySelector('#verify-payment');
 const paymentNotice = document.querySelector('#payment-notice');
 const paymentPanel = document.querySelector('#payment');
 const price = document.querySelector('#price');
-const downloadAll = document.querySelector('#download-all');
-downloadAll.addEventListener('click', () => {
-  if (downloadAll.hidden) return;
-  for (const link of results.querySelectorAll('.tracks article a:not([hidden])')) {
-    if (link.hasAttribute('href')) link.click();
-  }
-});
 const newJob = document.querySelector('#new-job');
 localStorage.removeItem('duu-salgagch-current-job');
 let activeJob = null;
@@ -220,7 +213,6 @@ function showJob(job, id) {
     link.hidden = !job.paid;
   });
   price.textContent = new Intl.NumberFormat('mn-MN').format(job.amount);
-  downloadAll.hidden = !job.paid;
   paymentPanel.hidden = job.paid;
   checkout.hidden = !job.payment_available;
   verifyPayment.hidden = !job.payment_available || !job.payment_started;
@@ -282,6 +274,7 @@ function updateJobButtons() {
 
 let paymentWatch;
 let paymentWindow;
+const paymentChannel = typeof BroadcastChannel === 'function' ? new BroadcastChannel('panamn-payment') : null;
 const checkoutLink = document.querySelector('#checkout-link');
 let paymentCheckInProgress = false;
 
@@ -324,21 +317,27 @@ function pendingPayment() {
 }
 
 function finishPayment(job, id) {
-  if (activeJob !== id) return;
+  if (activeJob !== id || !job.paid) return;
   showJob(job, id);
-  rememberPayment(null);
+  rememberPayment(id);
   results.scrollIntoView({block: 'nearest'});
-  const key = 'panamn:download:' + id;
-  const download = () => {
-    try {
-      if (localStorage.getItem(key)) return;
-      localStorage.setItem(key, '1');
-    } catch {}
-    if (activeJob === id) downloadAll.click();
-  };
-  if (navigator.locks) navigator.locks.request(key, download).catch(download);
-  else download();
+  if (paymentWindow && !paymentWindow.closed) paymentWindow.close();
+  paymentWindow = null;
+  if (wireReturn === 'return' && linkedJob === id) {
+    paymentChannel?.postMessage({type: 'wire-return', id});
+  }
 }
+
+paymentChannel?.addEventListener('message', async ({data}) => {
+  if (!data || activeJob !== data.id || pendingPayment() !== data.id) return;
+  if (data.type === 'wire-return' && wireReturn !== 'return') {
+    if (await confirmPayment(data.id, true).catch(() => false)) {
+      paymentChannel.postMessage({type: 'download-ready', id: data.id});
+    }
+  } else if (data.type === 'download-ready' && wireReturn === 'return' && linkedJob === data.id) {
+    window.close();
+  }
+});
 
 async function watchPayment(id, now = false) {
   if (paymentWatch === id) return;
@@ -383,7 +382,7 @@ async function handlePayment(action) {
         paymentNotice.textContent = 'QPay цонх нээгдээгүй бол доорх холбоосоор төлбөрөө нээнэ үү.';
       } else {
         paymentWindow.location = result.url;
-        paymentNotice.textContent = 'QPay шинэ цонхонд нээгдлээ. Төлбөр төлсний дараа таталт автоматаар эхэлнэ.';
+        paymentNotice.textContent = 'QPay шинэ цонхонд нээгдлээ. Төлбөр баталгаажмагц татах хэсэг рүү буцна.';
       }
       verifyPayment.hidden = false;
       void watchPayment(id);
@@ -441,7 +440,6 @@ function clearJob() {
   converted.hidden = true;
   results.hidden = true;
   convertedDownload.removeAttribute('href');
-  downloadAll.hidden = true;
   for (const player of results.querySelectorAll('audio')) {
     player.removeAttribute('src');
     player.load();
@@ -467,7 +465,6 @@ for (const link of [convertedDownload]) {
 
 window.addEventListener('pageshow', event => {
   if (event.persisted && activeJob && pendingPayment() === activeJob) void watchPayment(activeJob, true);
-  else if (event.persisted && !jobBusy && !paymentBusy) clearJob();
 });
 
 const wireReturn = new URLSearchParams(location.search).get('wire');
@@ -479,18 +476,18 @@ if (/^[a-f0-9]{32}$/.test(restoredJob || '')) {
   jobBusy = true;
   updateJobButtons();
   waitForJob(restoredJob).then(job => {
+    if (job.paid) {
+      finishPayment(job, restoredJob);
+      return;
+    }
     if (wireReturn === 'cancel' || !job.payment_started) {
       rememberPayment(null);
       return;
     }
     rememberPayment(restoredJob);
-    if (job.paid) finishPayment(job, restoredJob);
-    else {
-      paymentNotice.textContent = 'Төлбөрийг баталгаажуулж байна…';
-      void watchPayment(restoredJob, true);
-    }
+    paymentNotice.textContent = 'Төлбөрийг баталгаажуулж байна…';
+    void watchPayment(restoredJob, true);
   }).catch(error => {
-    rememberPayment(null);
     announce(error.message, true);
   }).finally(() => {
     history.replaceState(null, '', '/');

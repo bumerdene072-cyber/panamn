@@ -17,10 +17,10 @@
 <meta property="og:locale" content="mn_MN">
 <meta name="twitter:card" content="summary">
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=23">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=23">
-<link rel="stylesheet" href="/static/style.css?v=23">
-<script defer src="/static/main.js?v=23"></script>
+<link rel="icon" href="/static/icon-192.png?v=24">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=24">
+<link rel="stylesheet" href="/static/style.css?v=24">
+<script defer src="/static/main.js?v=24"></script>
 
 <style>
 #results .stem-mixer{display:grid;gap:.6rem;margin-block:.75rem}
@@ -47,13 +47,14 @@
 }
 </style>
 </head>
-<body>
-<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
+<body class="studio-home">
+<div class="studio-waves" aria-hidden="true"><i></i><i></i><i></i></div>
+<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><a class="catalog-nav" href="#catalog">♫ <span>Бэлэн аяны сан</span></a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
 <main>
-  <a href="#catalog" style="display:inline-block;margin-bottom:.7rem">♫ Бэлэн аяны сан</a>
   <section class="intro">
+    <span class="hero-tile hero-play" aria-hidden="true">▶</span><span class="hero-tile hero-note" aria-hidden="true">♫</span>
     <div class="hero-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-    <h1>Дуучны хоолой,<br><em>хөгжмийг салга.</em></h1>
+    <h1>Дууны хоолой,<br><em>аяыг салга.</em></h1>
     <p>YouTube линк, MP3 эсвэл MP4 файлаас хоолой, хөгжмийг шууд салгаарай.</p>
   </section>
   <section class="panel" aria-label="Дуу боловсруулах">
@@ -159,7 +160,7 @@
     </dialog>
   </section>
 <section id="catalog" class="panel">
-  <h2>Бэлэн ая</h2>
+  <h2>Бэлэн аяны сан</h2>
   <form id="catalog-search"><label for="catalog-query">Дуу, дуучны нэр</label>
     <div class="search-row"><input id="catalog-query" type="search" maxlength="120" placeholder="Дуу эсвэл дуучнаар хайх"><button type="submit">Хайх</button></div>
   </form>

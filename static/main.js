@@ -102,7 +102,7 @@ for (const event of ['dragenter', 'dragover', 'dragleave', 'drop']) {
 async function request(url, config) {
   const response = await fetch(url, {cache: 'no-store', ...config});
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || 'Серверийн алдаа гарлаа. Дахин оролдоно уу.');
+  if (!response.ok) throw Object.assign(new Error(body.error || 'Серверийн алдаа гарлаа. Дахин оролдоно уу.'), {status: response.status});
   return body;
 }
 
@@ -375,7 +375,7 @@ async function watchPayment(id, now = false) {
   }
 }
 
-async function handlePayment(action) {
+async function handlePayment(action, openedWindow) {
   if (!activeJob || paymentBusy) return;
   paymentBusy = true;
   checkout.disabled = verifyPayment.disabled = true;
@@ -383,7 +383,8 @@ async function handlePayment(action) {
   const id = activeJob;
   const opening = action === 'checkout';
   if (opening) checkoutLink.hidden = true;
-  if (opening && (!paymentWindow || paymentWindow.closed)) {
+  if (openedWindow) paymentWindow = openedWindow;
+  if (opening && openedWindow === undefined && (!paymentWindow || paymentWindow.closed)) {
     paymentWindow = window.open('about:blank', '_blank');
     if (paymentWindow) paymentWindow.opener = null;
   }
@@ -608,6 +609,7 @@ const catalogList = document.querySelector('#catalog-tracks');
 const catalogStatus = document.querySelector('#catalog-status');
 let catalogQuery = 0;
 let catalogDisposers = [];
+const catalogueOrders = new Map();
 
 async function searchCatalog() {
   if (!catalogForm) return;
@@ -644,14 +646,34 @@ async function searchCatalog() {
       if (icon) buy.prepend(icon);
       buy.addEventListener('click', async () => {
         if (jobBusy || paymentBusy) return;
+        const popup = window.open('about:blank', '_blank');
+        if (popup) popup.opener = null;
         jobBusy = true;
         buy.disabled = true;
+        catalogStatus.textContent = 'QPay төлбөрийг бэлдэж байна…';
         updateJobButtons();
         try {
-          const order = await request('/api/catalog/' + track.id + '/order', {method: 'POST'});
-          await resumeJob(order.id);
+          let id = catalogueOrders.get(track.id);
+          let job = id ? await resumeJob(id).catch(error => {
+            if (error.status === 404) return null;
+            throw error;
+          }) : null;
+          if (!job) {
+            const order = await request('/api/catalog/' + track.id + '/order', {method: 'POST'});
+            id = order.id;
+            catalogueOrders.set(track.id, id);
+            job = await resumeJob(id);
+          }
           results.scrollIntoView({block: 'nearest'});
+          if (job.paid) {
+            popup?.close();
+            finishPayment(job, id);
+          } else {
+            await handlePayment('checkout', popup);
+          }
+          catalogStatus.textContent = 'Аянаас 30 секунд сонсоорой.';
         } catch (error) {
+          popup?.close();
           catalogStatus.textContent = error.message;
         } finally {
           jobBusy = false;

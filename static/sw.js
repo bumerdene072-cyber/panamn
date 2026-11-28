@@ -1,7 +1,7 @@
-const SHELL = 'duu-salgagch-shell-v21';
+const SHELL = 'duu-salgagch-shell-v22';
 const OFFLINE = '/static/offline.html';
 const ASSETS = [
-  OFFLINE, '/static/style.css?v=21', '/static/main.js?v=21', '/static/manifest.webmanifest',
+  OFFLINE, '/static/style.css?v=22', '/static/main.js?v=22', '/static/manifest.webmanifest',
   '/static/icon-192.png', '/static/icon-512.png'
 ];
 

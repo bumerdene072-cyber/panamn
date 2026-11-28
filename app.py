@@ -645,3 +645,65 @@ def result(job_id, variant, stem):
                              as_attachment=variant == "full", download_name=f"{stem}.mp3")
         response.cache_control.private = True
         return response
+
+
+def catalog_tracks():
+    root = DATA_DIR / "catalog"
+    tracks = []
+    for metadata in sorted(root.glob("*/track.json")):
+        if not re.fullmatch(r"[a-f0-9]{32}", metadata.parent.name):
+            continue
+        try:
+            item = json.loads(metadata.read_text())
+            if (all(isinstance(item.get(key), str) and item[key].strip()
+                    for key in ("title", "artist"))
+                    and all((metadata.parent / name).is_file() for name in STEM_CACHE_FILES)):
+                tracks.append({"id": metadata.parent.name, "title": item["title"],
+                               "artist": item["artist"],
+                               "preview": f"/api/catalog/{metadata.parent.name}/preview"})
+        except (OSError, ValueError, AttributeError):
+            continue
+    return sorted(tracks, key=lambda item: (item["artist"].casefold(), item["title"].casefold()))
+
+
+@app.get("/api/catalog")
+def list_catalog():
+    terms = request.args.get("q", "")[:120].casefold().split()
+    tracks = [track for track in catalog_tracks()
+              if all(term in (track["title"] + " " + track["artist"]).casefold()
+                     for term in terms)]
+    return jsonify(tracks=tracks[:50], amount=wire.PRICE)
+
+
+@app.get("/api/catalog/<track_id>/preview")
+def catalog_preview(track_id):
+    if not re.fullmatch(r"[a-f0-9]{32}", track_id):
+        return "", 404
+    folder = DATA_DIR / "catalog" / track_id
+    preview = folder / "preview-no_vocals.mp3"
+    if not (folder / "track.json").is_file() or not preview.is_file():
+        return "", 404
+    return send_file(preview, mimetype="audio/mpeg", max_age=0)
+
+
+@app.post("/api/catalog/<track_id>/order")
+def catalog_order(track_id):
+    track = next((item for item in catalog_tracks() if item["id"] == track_id), None)
+    if track is None:
+        return jsonify(error="Энэ ая олдсонгүй."), 404
+    job_id = uuid4().hex
+    folder = DATA_DIR / job_id
+    try:
+        folder.mkdir(mode=0o700)
+        for name in STEM_CACHE_FILES:
+            target = folder / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            os.link(DATA_DIR / "catalog" / track_id / name, target)
+        with lock:
+            remove_expired()
+            write_job(job_id, {"status": "ready", "expires": time.time() + RETENTION})
+    except OSError:
+        shutil.rmtree(folder, ignore_errors=True)
+        return jsonify(error="Аяны захиалга үүсгэж чадсангүй."), 503
+    track_stage(DATA_DIR, "started", job_id, campaign_source())
+    return jsonify(id=job_id), 201

@@ -655,7 +655,7 @@ async function searchCatalog() {
       return card;
     });
     catalogList.replaceChildren(...cards);
-    catalogStatus.textContent = tracks.length ? 'Аяны эхний 30 секундыг сонсоорой.' :
+    catalogStatus.textContent = tracks.length ? 'Аянаас 30 секунд сонсоорой.' :
       value ? 'Тохирох ая олдсонгүй.' : 'Бэлэн ая удахгүй нэмэгдэнэ.';
   } catch {
     if (query === catalogQuery) catalogStatus.textContent = 'Аяны санг ачаалж чадсангүй.';

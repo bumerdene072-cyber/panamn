@@ -3,53 +3,208 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#12101a">
-<title>Дуу Салгагч</title>
+<meta name="theme-color" content="#f7f8fc">
+<title>PANAMN.SITE — Дууны хоолой, ая салгах | YouTube-ээс MP3</title>
+<meta name="description" content="YouTube дээр дуугаа нэрээр хайж сонсоорой. MP3, MP4 файл эсвэл дэмжигдсэн YouTube холбоосоос хоолой, аяыг салгаж, 30 секунд үнэгүй сонсоно.">
+<meta name="google-site-verification" content="orbjr2eg-yc27qlCIsVCHSYfeDKZanFeh3wcFKWuG4E">
+<link rel="canonical" href="https://panamn.site/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="PANAMN.SITE">
+<meta property="og:url" content="https://panamn.site/">
+<meta property="og:title" content="PANAMN.SITE — Дууны хоолой, ая салгах | YouTube-ээс MP3">
+<meta property="og:description" content="YouTube дээр дуугаа нэрээр хайж сонсоорой. MP3, MP4 файл эсвэл дэмжигдсэн YouTube холбоосоос хоолой, аяыг салгаж, 30 секунд үнэгүй сонсоно.">
+<meta property="og:image" content="https://panamn.site/static/icon-512.png">
+<meta property="og:locale" content="mn_MN">
+<meta name="twitter:card" content="summary">
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-<link rel="stylesheet" href="/static/style.css">
-<script defer src="/static/main.js"></script>
+<link rel="icon" href="/static/icon-192.png?v=26">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=26">
+<link rel="stylesheet" href="/static/style.css?v=26">
+<script defer src="/static/main.js?v=26"></script>
+
+<style>
+#results .stem-mixer{display:grid;gap:.6rem;margin-block:.75rem}
+#results .stem-row{--stem:#a58bff;display:grid;grid-template-columns:minmax(7.8rem,auto) minmax(3rem,1fr) auto;align-items:center;gap:.65rem;padding:.55rem .65rem;background:color-mix(in srgb,var(--surface) 95%,var(--stem));border:1px solid var(--line);border-radius:.85rem}
+#results .stem-instrumental{--stem:#48b9ec}
+#results .stem-identity,#results .stem-controls,#results .stem-volume{display:flex;gap:.45rem;align-items:center;min-width:0}
+#results .stem-identity h2{font-size:.84rem;line-height:1.25;margin:0}
+#results .stem-identity .track-note{background:var(--stem);color:#171027;flex:none;width:1.85rem;height:1.85rem;border-radius:.62rem}
+#results .stem-wave{position:relative;height:2.5rem;min-width:0;color:var(--stem);border-radius:.35rem}
+#results .stem-wave canvas,#results .stem-seek{position:absolute;inset:0;width:100%;height:100%;margin:0}
+#results .stem-seek{opacity:0;cursor:pointer}
+#results .stem-wave:focus-within{outline:2px solid var(--stem);outline-offset:2px}
+#results .stem-play,#results .stem-download{display:inline-flex;align-items:center;justify-content:center;gap:.2rem;min-width:44px;min-height:44px;padding:.25rem;border-radius:50%;margin:0}
+#results .stem-play{background:var(--stem);color:#171027;border:0;font-size:.92rem}
+#results .stem-download{border-radius:.65rem;color:var(--text);font-size:.66rem;text-decoration:none}
+#results .stem-time{font-variant-numeric:tabular-nums;font-size:.72rem;color:var(--muted)}
+#results .stem-volume input{width:3.5rem;accent-color:var(--stem);padding:0}
+@media(max-width:600px){
+ #results .stem-row{grid-template-columns:1fr auto;gap:.25rem .4rem}
+ #results .stem-wave{grid-column:1/-1;grid-row:2;height:2rem}
+ #results .stem-volume span{display:none}
+ #results .stem-volume input{width:2.75rem}
+ #results .stem-controls{gap:.3rem}
+}
+</style>
 </head>
-<body>
-<header><span class="mark" aria-hidden="true">▂▆█▅▂</span> Дуу Салгагч <button id="install" type="button" hidden>Апп суулгах</button></header>
+<body class="studio-home">
+<div class="studio-waves" aria-hidden="true"></div>
+<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><a class="catalog-nav" href="#catalog">♫ <span>Бэлэн аяны сан</span></a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
 <main>
   <section class="intro">
-    <div class="wave" aria-hidden="true"></div>
-    <h1>Дуунаас хоолой,<br><em>хөгжмийг салга.</em></h1>
-    <p>Дууны хоолой, хөгжмийг салгаад эхний 20 секундийг үнэгүй сонсоорой.</p>
+    <span class="hero-tile hero-play" aria-hidden="true">▶</span><span class="hero-tile hero-note" aria-hidden="true">♫</span>
+    <div class="hero-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <h1>Дууны хоолой,<br><em>аяыг салга.</em></h1>
+    <p>YouTube линк, MP3 эсвэл MP4 файлаас хоолой, хөгжмийг шууд салгаарай.</p>
   </section>
   <section class="panel" aria-label="Дуу боловсруулах">
-    <form id="upload">
+    <div class="sources" role="group" aria-label="Дууны эх үүсвэр">
+      <button type="button" id="youtube-mode" aria-controls="youtube" aria-pressed="true"><svg class="" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="4"/><path d="m10 9 5 3-5 3z"/></svg> YouTube линк</button>
+      <button type="button" id="upload-mode" aria-controls="upload" aria-pressed="false"><svg class="" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg> Файл оруулах</button>
+    </div>
+    <div id="song-search">
+      <form id="search-form">
+        <label for="song-query">Дуу эсвэл дуучны нэрээр хайх</label>
+        <div class="search-row">
+          <input id="song-query" type="search" minlength="2" maxlength="120" placeholder="Жишээ нь, XUG Чинийх" required>
+          <button type="submit">Хайх</button>
+        </div>
+      </form>
+      <p id="search-status" role="status" hidden></p>
+      <ul id="search-results" aria-label="YouTube хайлтын үр дүн" hidden></ul>
+      <section id="song-player" aria-label="YouTube тоглуулагч" hidden>
+        <div id="player-frame"></div>
+        <div class="player-info">
+          <strong id="player-title"></strong>
+          <a id="watch-youtube" target="_blank" rel="noopener noreferrer">YouTube дээр нээх ↗</a>
+        </div>
+      </section>
+    </div>
+    <form id="youtube">
+      <label for="link">Эсвэл YouTube холбоос оруулах</label>
+      <input id="link" name="youtube_url" type="text" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="YouTube холбоосоо хуулж оруулна уу">
+      <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
+      <label id="publish-option" hidden><input id="publish-catalog" type="checkbox" name="publish_catalog" value="yes" disabled> Нийтийн аяны санд нэмэхийг зөвшөөрч байна. Би энэ дууг нийтлэх, худалдах эрхтэй.</label>
+      <button class="primary" type="submit" name="operation" value="separate">YouTube-ээс шууд салгах <span aria-hidden="true">→</span></button>
+      <button class="source-export" type="submit" name="operation" value="convert">Эх MP3 үнэгүй татах ↓</button>
+    </form>
+    <form id="upload" hidden>
       <label id="drop" class="drop">
-        <input type="file" name="audio" id="audio" accept=".mp3,.wav,.m4a,.flac,.ogg,.mp4" required>
-        <span class="music" aria-hidden="true">♫</span>
+        <input type="file" name="audio" id="audio" accept=".mp3,.mp4,.wav,.m4a,.flac,.ogg" required>
+        <span class="upload-icon"><svg class="" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m-4 4 4-4 4 4M4 15v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4"/></svg></span>
         <strong id="filename">Файл сонгох эсвэл чирж оруулах</strong>
-        <small>MP3, WAV, M4A, FLAC, OGG, MP4 · 50 МБ · 10 минут хүртэл</small>
+        <small>MP3, MP4, WAV, M4A, FLAC, OGG · 50 МБ · 10 минут хүртэл</small>
       </label>
-      <label class="rights"><input type="checkbox" name="rights" value="yes" required> Би энэ файлыг боловсруулах эрхтэй.</label>
-      <button id="submit" type="submit">Хоолой, хөгжмийг салгах</button>
+      <button class="primary" type="submit">Дуу салгах <span aria-hidden="true">→</span></button>
     </form>
     <p id="status" role="status" hidden></p>
+    <div id="processing" class="processing" hidden>
+      <progress id="job-progress" max="100" aria-label="Дуу салгалтын явц"></progress>
+      <output id="job-time"></output>
+    </div>
+    <button id="upload-fallback" type="button" hidden>MP3 / MP4 файл оруулах →</button>
+    <div id="converted" hidden>
+      <a id="converted-download" class="download-all" download>MP3 үнэгүй татах ↓</a>
+      <button id="convert-to-upload" type="button">Хоолой, хөгжмийг салгах →</button>
+    </div>
     <div id="results" hidden>
-      <article><h2>Дуучны хоолой</h2><audio controls preload="metadata" aria-label="Дуучны хоолой"></audio><a download hidden>Бүтэн хоолой татах · MP3</a></article>
-      <article><h2>Зөвхөн хөгжим</h2><audio controls preload="metadata" aria-label="Зөвхөн хөгжим"></audio><a download hidden>Бүтэн хөгжим татах · MP3</a></article>
+      <div class="preview-heading"><h2>Туршиж сонсох</h2><span>Эхний 30 секунд · Үнэгүй</span></div>
+      <div class="tracks stem-mixer">
+        <article class="stem-row stem-vocals">
+          <div class="stem-identity"><span class="track-note" aria-hidden="true">♩</span><h2>Дуучны хоолой</h2></div>
+          <audio preload="none" aria-label="Дуучны хоолой"></audio>
+          <div class="stem-wave"><canvas aria-hidden="true"></canvas><input class="stem-seek" type="range" min="0" max="1000" value="0" aria-label="Дуучны хоолой тоглуулах байрлал" disabled></div>
+          <div class="stem-controls">
+            <button class="stem-play" type="button" aria-label="Дуучны хоолой тоглуулах">▶</button>
+            <span class="stem-time" aria-hidden="true">0:00</span>
+            <label class="stem-volume"><span aria-hidden="true">◖))</span><input type="range" min="0" max="1" step="0.05" value="1" aria-label="Дуучны хоолой дууны хэмжээ"></label>
+            <a class="stem-download" download hidden aria-label="Бүтэн хоолой татах · MP3" title="Бүтэн хоолой татах · MP3"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"/></svg><span>MP3</span></a>
+          </div>
+        </article>
+        <article class="stem-row stem-instrumental">
+          <div class="stem-identity"><span class="track-note" aria-hidden="true">♫</span><h2>Зөвхөн хөгжим</h2></div>
+          <audio preload="none" aria-label="Зөвхөн хөгжим"></audio>
+          <div class="stem-wave"><canvas aria-hidden="true"></canvas><input class="stem-seek" type="range" min="0" max="1000" value="0" aria-label="Зөвхөн хөгжим тоглуулах байрлал" disabled></div>
+          <div class="stem-controls">
+            <button class="stem-play" type="button" aria-label="Зөвхөн хөгжим тоглуулах">▶</button>
+            <span class="stem-time" aria-hidden="true">0:00</span>
+            <label class="stem-volume"><span aria-hidden="true">◖))</span><input type="range" min="0" max="1" step="0.05" value="1" aria-label="Зөвхөн хөгжим дууны хэмжээ"></label>
+            <a class="stem-download" download hidden aria-label="Хөгжим татах · MP3" title="Хөгжим татах · MP3"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v3h14v-3"/></svg><span>MP3</span></a>
+          </div>
+        </article>
+      </div>
       <div id="payment">
-        <strong>Бүтэн хоолой + хөгжим · <span id="price"></span>₮</strong>
+        <div class="sale-heading"><span class="sale-label"><svg class="" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 4l3 3 3-3m-6 16 3-3 3 3M4 10l4-.8-1-4m13 8.8-4 .8 1 4M4 14l4 .8-1 4m13-8.8-4-.8 1-4"/></svg> Шинэ жилийн хямдрал</span><span class="sale-discount">−50%</span></div>
+        <div class="payment-heading">
+          <strong>Бүтэн хоолой + хөгжим</strong>
+          <span class="sale-price"><del aria-label="Үндсэн үнэ 10,000 төгрөг">10,000₮</del><span><b id="price"></b>₮</span></span>
+        </div>
         <div class="payment-actions">
-          <button id="checkout" type="button" hidden>Wire-ээр төлөх</button>
+          <button id="checkout" class="qpay" type="button" hidden><svg class="qpay-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h3m-6 3v-3m6-3v1m0 5h-2"/></svg> QPay төлөх <span aria-hidden="true">→</span></button>
           <button id="verify-payment" type="button" hidden>Төлбөр шалгах</button>
         </div>
+        <a id="checkout-link" target="_blank" rel="noopener" hidden>QPay цонх дахин нээх ↗</a>
         <p id="payment-notice" role="status"></p>
       </div>
     </div>
-    <details id="ios-install" hidden><summary>iPhone-д апп суулгах</summary><p>Safari дээр хуваалцах цэсийг нээгээд “Add to Home Screen” сонгоно уу.</p></details>
-    <details>
-      <summary>YouTube бичлэг ашиглах</summary>
-      <p>YouTube холбоосоор бичлэгээ нээж шалгаарай. Өөрийн бичлэгийг <a href="https://studio.youtube.com/" target="_blank" rel="noopener noreferrer">YouTube Studio</a>-оос татаж аваад дээр оруулна уу.</p>
-      <form id="youtube"><label for="link">YouTube холбоос</label><div class="urlrow"><input id="link" type="url" required placeholder="https://youtu.be/…"><button type="submit">Нээх</button></div><small id="link-error" role="status"></small></form>
-    </details>
+    <button id="new-job" class="source-export" type="button" hidden>Шинэ дуу</button>
+    <dialog id="install-dialog" aria-labelledby="install-title">
+      <img src="/static/icon-192.png" width="52" height="52" alt="">
+      <h2 id="install-title">PANAMN.SITE суулгах уу?</h2>
+      <p>Дуу салгагчаа утасныхаа нүүр дэлгэцээс шууд нээгээрэй.</p>
+      <p id="install-help" hidden>Safari дээр Share товч → “Add to Home Screen” → “Add” дарна уу.</p>
+      <div class="install-actions">
+        <button id="install-confirm" type="button">Суулгах</button>
+        <button id="install-later" type="button">Дараа</button>
+      </div>
+    </dialog>
   </section>
+<section id="catalog" class="panel">
+  <h2>Бэлэн аяны сан</h2>
+  <form id="catalog-search"><label for="catalog-query">Дуу, дуучны нэр</label>
+    <div class="search-row"><input id="catalog-query" type="search" maxlength="120" placeholder="Дуу эсвэл дуучнаар хайх"><button type="submit">Хайх</button></div>
+  </form>
+  <p id="catalog-status" role="status"></p>
+  <div id="catalog-tracks" class="tracks" tabindex="0" role="region" aria-label="Бэлэн аяны жагсаалт"></div>
+</section>
 </main>
+<style>
+#help-widget{position:fixed;right:max(1rem,env(safe-area-inset-right));bottom:max(1rem,env(safe-area-inset-bottom));z-index:20}
+#help-toggle,#help-close{min-height:44px;border-radius:999px;padding:.6rem 1rem}
+#help-toggle{display:flex;align-items:center;gap:.5rem;background:var(--accent);color:var(--accent-text);margin-left:auto;box-shadow:var(--shadow)}
+#help-panel{position:absolute;bottom:calc(100% + .6rem);right:0;width:min(24rem,calc(100vw - 2rem));height:min(31rem,calc(100dvh - 5.5rem));display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--line);border-radius:1rem;background:var(--surface);box-shadow:var(--shadow)}
+#help-panel header{display:flex;align-items:center;justify-content:space-between;padding:.3rem .7rem .3rem 1rem;border-bottom:1px solid var(--line)}
+#help-frame{display:block;flex:1;width:100%;min-height:0;border:0}
+</style>
+<div id="help-widget">
+  <section id="help-panel" aria-label="Тусламж чат" hidden>
+    <header><strong>Тусламж</strong><button id="help-close" type="button" aria-label="Чат хаах">✕</button></header>
+    <iframe id="help-frame" title="PANAMN.SITE тусламж чат"></iframe>
+  </section>
+  <button id="help-toggle" type="button" aria-controls="help-panel" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-1-2V6a2 2 0 0 1 2-2Z"/></svg>
+    Тусламж
+  </button>
+</div>
+<script>
+{
+  const button = document.getElementById('help-toggle');
+  const panel = document.getElementById('help-panel');
+  const close = document.getElementById('help-close');
+  const frame = document.getElementById('help-frame');
+  function setOpen(open) {
+    panel.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+    if (open && !frame.hasAttribute('src')) frame.src = '/help';
+    if (!open) frame.removeAttribute('src');
+    (open ? close : button).focus();
+  }
+  button.addEventListener('click', () => setOpen(panel.hidden));
+  close.addEventListener('click', () => setOpen(false));
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !panel.hidden) setOpen(false);
+  });
+}
+</script>
 </body>
 </html>

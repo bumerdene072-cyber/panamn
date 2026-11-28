@@ -17,39 +17,39 @@
 <meta property="og:locale" content="mn_MN">
 <meta name="twitter:card" content="summary">
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=26">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=26">
-<link rel="stylesheet" href="/static/style.css?v=26">
-<script defer src="/static/main.js?v=26"></script>
+<link rel="icon" href="/static/icon-192.png?v=27">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=27">
+<link rel="stylesheet" href="/static/style.css?v=27">
+<script defer src="/static/main.js?v=27"></script>
 
 <style>
-#results .stem-mixer{display:grid;gap:.6rem;margin-block:.75rem}
-#results .stem-row{--stem:#a58bff;display:grid;grid-template-columns:minmax(7.8rem,auto) minmax(3rem,1fr) auto;align-items:center;gap:.65rem;padding:.55rem .65rem;background:color-mix(in srgb,var(--surface) 95%,var(--stem));border:1px solid var(--line);border-radius:.85rem}
-#results .stem-instrumental{--stem:#48b9ec}
-#results .stem-identity,#results .stem-controls,#results .stem-volume{display:flex;gap:.45rem;align-items:center;min-width:0}
-#results .stem-identity h2{font-size:.84rem;line-height:1.25;margin:0}
-#results .stem-identity .track-note{background:var(--stem);color:#171027;flex:none;width:1.85rem;height:1.85rem;border-radius:.62rem}
-#results .stem-wave{position:relative;height:2.5rem;min-width:0;color:var(--stem);border-radius:.35rem}
-#results .stem-wave canvas,#results .stem-seek{position:absolute;inset:0;width:100%;height:100%;margin:0}
-#results .stem-seek{opacity:0;cursor:pointer}
-#results .stem-wave:focus-within{outline:2px solid var(--stem);outline-offset:2px}
-#results .stem-play,#results .stem-download{display:inline-flex;align-items:center;justify-content:center;gap:.2rem;min-width:44px;min-height:44px;padding:.25rem;border-radius:50%;margin:0}
-#results .stem-play{background:var(--stem);color:#171027;border:0;font-size:.92rem}
-#results .stem-download{border-radius:.65rem;color:var(--text);font-size:.66rem;text-decoration:none}
-#results .stem-time{font-variant-numeric:tabular-nums;font-size:.72rem;color:var(--muted)}
-#results .stem-volume input{width:3.5rem;accent-color:var(--stem);padding:0}
+:is(#results,#catalog-tracks) .stem-mixer{display:grid;gap:.6rem;margin-block:.75rem}
+:is(#results,#catalog-tracks) .stem-row{--stem:#a58bff;display:grid;grid-template-columns:minmax(7.8rem,auto) minmax(3rem,1fr) auto;align-items:center;gap:.65rem;padding:.55rem .65rem;background:color-mix(in srgb,var(--surface) 95%,var(--stem));border:1px solid var(--line);border-radius:.85rem}
+:is(#results,#catalog-tracks) .stem-instrumental{--stem:#48b9ec}
+:is(#results,#catalog-tracks) .stem-identity,:is(#results,#catalog-tracks) .stem-controls,:is(#results,#catalog-tracks) .stem-volume{display:flex;gap:.45rem;align-items:center;min-width:0}
+:is(#results,#catalog-tracks) .stem-identity h2{font-size:.84rem;line-height:1.25;margin:0}
+:is(#results,#catalog-tracks) .stem-identity .track-note{background:var(--stem);color:#171027;flex:none;width:1.85rem;height:1.85rem;border-radius:.62rem}
+:is(#results,#catalog-tracks) .stem-wave{position:relative;height:2.5rem;min-width:0;color:var(--stem);border-radius:.35rem}
+:is(#results,#catalog-tracks) .stem-wave canvas,:is(#results,#catalog-tracks) .stem-seek{position:absolute;inset:0;width:100%;height:100%;margin:0}
+:is(#results,#catalog-tracks) .stem-seek{opacity:0;cursor:pointer}
+:is(#results,#catalog-tracks) .stem-wave:focus-within{outline:2px solid var(--stem);outline-offset:2px}
+:is(#results,#catalog-tracks) .stem-play,:is(#results,#catalog-tracks) .stem-download{display:inline-flex;align-items:center;justify-content:center;gap:.2rem;min-width:44px;min-height:44px;padding:.25rem;border-radius:50%;margin:0}
+:is(#results,#catalog-tracks) .stem-play{background:var(--stem);color:#171027;border:0;font-size:.92rem}
+:is(#results,#catalog-tracks) .stem-download{border-radius:.65rem;color:var(--text);font-size:.66rem;text-decoration:none}
+:is(#results,#catalog-tracks) .stem-time{font-variant-numeric:tabular-nums;font-size:.72rem;color:var(--muted)}
+:is(#results,#catalog-tracks) .stem-volume input{width:3.5rem;accent-color:var(--stem);padding:0}
 @media(max-width:600px){
- #results .stem-row{grid-template-columns:1fr auto;gap:.25rem .4rem}
- #results .stem-wave{grid-column:1/-1;grid-row:2;height:2rem}
- #results .stem-volume span{display:none}
- #results .stem-volume input{width:2.75rem}
- #results .stem-controls{gap:.3rem}
+ :is(#results,#catalog-tracks) .stem-row{grid-template-columns:1fr auto;gap:.25rem .4rem}
+ :is(#results,#catalog-tracks) .stem-wave{grid-column:1/-1;grid-row:2;height:2rem}
+ :is(#results,#catalog-tracks) .stem-volume span{display:none}
+ :is(#results,#catalog-tracks) .stem-volume input{width:2.75rem}
+ :is(#results,#catalog-tracks) .stem-controls{gap:.3rem}
 }
 </style>
 </head>
 <body class="studio-home">
 <div class="studio-waves" aria-hidden="true"></div>
-<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><a class="catalog-nav" href="#catalog">♫ <span>Бэлэн аяны сан</span></a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
+<header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><a class="catalog-nav" href="#catalog">♫ <span>Бэлэн аяны сан</span></a><div class="top-actions"><button id="install" type="button" aria-label="Апп суулгах" title="Апп суулгах" hidden><span class="install-label">Апп суулгах</span><span class="install-symbol" aria-hidden="true">⇩</span></button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
 <main>
   <section class="intro">
     <span class="hero-tile hero-play" aria-hidden="true">▶</span><span class="hero-tile hero-note" aria-hidden="true">♫</span>
@@ -84,7 +84,7 @@
       <label for="link">Эсвэл YouTube холбоос оруулах</label>
       <input id="link" name="youtube_url" type="text" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="YouTube холбоосоо хуулж оруулна уу">
       <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
-      <label id="publish-option" hidden><input id="publish-catalog" type="checkbox" name="publish_catalog" value="yes" disabled> Нийтийн аяны санд нэмэхийг зөвшөөрч байна. Би энэ дууг нийтлэх, худалдах эрхтэй.</label>
+      <label id="publish-option" hidden><input id="publish-catalog" type="checkbox" name="publish_catalog" value="yes" disabled> Нийтийн аяны санд нэмэхийг зөвшөөрч байна.</label>
       <button class="primary" type="submit" name="operation" value="separate">YouTube-ээс шууд салгах <span aria-hidden="true">→</span></button>
       <button class="source-export" type="submit" name="operation" value="convert">Эх MP3 үнэгүй татах ↓</button>
     </form>

@@ -585,3 +585,67 @@ offerInstall();
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(console.error);
 }
+
+const catalogForm = document.querySelector('#catalog-search');
+const catalogList = document.querySelector('#catalog-tracks');
+const catalogStatus = document.querySelector('#catalog-status');
+let catalogQuery = 0;
+
+async function searchCatalog() {
+  if (!catalogForm) return;
+  const query = ++catalogQuery;
+  const value = document.querySelector('#catalog-query').value.trim();
+  try {
+    const {tracks, amount} = await request('/api/catalog?q=' + encodeURIComponent(value));
+    if (query !== catalogQuery) return;
+    const cards = tracks.map(track => {
+      const card = document.createElement('article');
+      const name = document.createElement('h2');
+      name.textContent = track.title;
+      const artist = document.createElement('p');
+      artist.textContent = track.artist;
+      const audio = document.createElement('audio');
+      audio.controls = true;
+      audio.preload = 'none';
+      audio.src = track.preview;
+      audio.setAttribute('aria-label', track.title + ' · 30 секундын ая');
+      audio.addEventListener('play', () => {
+        for (const other of document.querySelectorAll('audio')) {
+          if (other !== audio) other.pause();
+        }
+      });
+      const buy = document.createElement('button');
+      buy.type = 'button';
+      buy.textContent = new Intl.NumberFormat('mn-MN').format(amount) + '₮ · Авах';
+      buy.addEventListener('click', async () => {
+        if (jobBusy || paymentBusy) return;
+        jobBusy = true;
+        buy.disabled = true;
+        updateJobButtons();
+        try {
+          const order = await request('/api/catalog/' + track.id + '/order', {method: 'POST'});
+          await resumeJob(order.id);
+          results.scrollIntoView({block: 'nearest'});
+        } catch (error) {
+          catalogStatus.textContent = error.message;
+        } finally {
+          jobBusy = false;
+          buy.disabled = false;
+          updateJobButtons();
+        }
+      });
+      card.append(name, artist, audio, buy);
+      return card;
+    });
+    catalogList.replaceChildren(...cards);
+    catalogStatus.textContent = tracks.length ? 'Аяны эхний 30 секундыг сонсоорой.' :
+      value ? 'Тохирох ая олдсонгүй.' : 'Бэлэн ая удахгүй нэмэгдэнэ.';
+  } catch {
+    if (query === catalogQuery) catalogStatus.textContent = 'Аяны санг ачаалж чадсангүй.';
+  }
+}
+catalogForm?.addEventListener('submit', event => {
+  event.preventDefault();
+  void searchCatalog();
+});
+void searchCatalog();

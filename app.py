@@ -12,7 +12,7 @@ import sys
 import tempfile
 import time
 from threading import BoundedSemaphore, Lock, Thread
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 from zipfile import BadZipFile, ZipFile
 
 from flask import Flask, jsonify, request, send_file
@@ -38,6 +38,8 @@ lock = Lock()
 payment_lock = Lock()
 slots = BoundedSemaphore(1)
 search_slots = BoundedSemaphore(2)
+catalog_metadata = {}
+catalog_publish_lock = Lock()
 WORKER_ID = uuid4().hex
 ACTIVE_STATUSES = {"downloading", "processing"}
 
@@ -242,7 +244,25 @@ def remember_stems(video_id, folder):
         cached.unlink(missing_ok=True)
 
 
-def process_audio(job_id, folder, source, video_id, operation):
+def publish_completed_track(job_id, video_id, metadata):
+    if not metadata:
+        return
+    try:
+        from publish_catalog import publish
+        track_id = uuid5(NAMESPACE_URL, "https://www.youtube.com/watch?v=" + video_id).hex
+        with catalog_publish_lock:
+            root = DATA_DIR / "catalog"
+            if (root / track_id / "track.json").is_file():
+                return
+            if sum(1 for _ in root.glob("*/track.json")) >= 250:
+                logging.warning("Catalogue limit reached")
+                return
+            publish(job_id, metadata[0], metadata[1], track_id=track_id)
+    except (OSError, ValueError):
+        logging.exception("Could not publish catalogue track")
+
+
+def process_audio(job_id, folder, source, video_id, operation, publication=None):
     message = "Файлын дууг уншиж чадсангүй. Өөр файл оруулж үзээрэй."
     downloaded = False
     cache_stems = False
@@ -266,6 +286,7 @@ def process_audio(job_id, folder, source, video_id, operation):
                 if cache_stems and restore_stems(video_id, folder):
                     with lock:
                         write_job(job_id, {"status": "ready", "expires": time.time() + RETENTION})
+                    publish_completed_track(job_id, video_id, publication)
                     return
                 cache_mp3 = source is None
                 source = source or read_youtube_cache(video_id, folder)
@@ -317,6 +338,7 @@ def process_audio(job_id, folder, source, video_id, operation):
             remember_stems(video_id, folder)
         with lock:
             write_job(job_id, {"status": "ready", "expires": time.time() + RETENTION})
+        publish_completed_track(job_id, video_id, publication)
     except Exception:
         logging.exception("Separation failed for job %s", job_id)
         shutil.rmtree(folder, ignore_errors=True)
@@ -360,6 +382,12 @@ def search_youtube():
             })
             if len(results) == 6:
                 break
+        with catalog_publish_lock:
+            for result in results:
+                if result["title"] != result["id"] and result["channel"]:
+                    if len(catalog_metadata) >= 512:
+                        catalog_metadata.pop(next(iter(catalog_metadata)))
+                    catalog_metadata[result["id"]] = (result["title"], result["channel"], time.monotonic())
         return jsonify(results=results)
     except (subprocess.SubprocessError, ValueError):
         return jsonify(error="YouTube хайлт түр ажиллахгүй байна. Линкээ шууд оруулж болно."), 502
@@ -380,6 +408,13 @@ def submit():
         return jsonify(error="YouTube бичлэгийн зөв холбоос оруулна уу."), 400
     if not video_id and ext not in FORMATS:
         return jsonify(error="MP3, MP4, WAV, M4A, FLAC эсвэл OGG файл оруулна уу."), 400
+    publication = None
+    if operation == "separate" and request.form.get("publish_catalog") == "yes":
+        with catalog_publish_lock:
+            info = catalog_metadata.get(video_id)
+        if not info or time.monotonic() - info[2] > 3600:
+            return jsonify(error="Аяны санд нэмэх дуугаа YouTube хайлтаас дахин сонгоно уу."), 400
+        publication = info[:2]
     if not slots.acquire(blocking=False):
         return jsonify(error="Сервер дуу боловсруулж байна. Түр хүлээгээд дахин оролдоно уу."), 429
     job_id = uuid4().hex
@@ -414,7 +449,7 @@ def submit():
                 "operation": operation,
                 "expires": time.time() + 3600,
             })
-        Thread(target=process_audio, args=(job_id, folder, source, video_id, operation), daemon=True).start()
+        Thread(target=process_audio, args=(job_id, folder, source, video_id, operation, publication), daemon=True).start()
         started = True
         if operation == "separate":
             track_stage(DATA_DIR, "started", job_id, campaign_source())

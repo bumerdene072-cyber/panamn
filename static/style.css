@@ -98,7 +98,7 @@ summary { cursor: pointer; }
 
 .payment-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 5px 10px; }
 .payment-heading > span { color: var(--highlight); font-size: 1.22rem; font-weight: 800; }
-.payment-actions button.qpay, .download-all { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 52px; padding: 10px 14px; background: var(--accent); color: var(--accent-text); border: 0; border-radius: 12px; font-weight: 800; }
+.payment-actions button.qpay, #catalog-tracks .catalog-buy, .download-all { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 52px; padding: 10px 14px; background: var(--accent); color: var(--accent-text); border: 0; border-radius: 12px; font-weight: 800; }
 .qpay-icon { font-size: 1.25rem; }
 .download-all { margin-top: 14px; text-decoration: none; }
 
@@ -180,7 +180,6 @@ summary { cursor: pointer; }
 @media(max-width:950px){.studio-home .hero-tile{display:none}}
 @media(max-width:540px){
  .studio-home .top{flex-wrap:wrap;gap:.65rem;padding-block:14px}
- .studio-home .catalog-nav{order:3;flex-basis:100%}
  .studio-home .intro{padding:22px 0 24px}
  .studio-home .hero-wave{height:45px;margin-bottom:.9rem}
 }
@@ -220,3 +219,23 @@ summary { cursor: pointer; }
 .studio-home #catalog-tracks article { scroll-snap-align: start; }
 .studio-home #catalog-tracks h2,
 .studio-home #catalog-tracks article p { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+#install .install-symbol { display: none; }
+#catalog-tracks .catalog-player { grid-template-columns: 1fr; align-content: start; }
+#catalog-tracks .catalog-player .stem-identity { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: .1rem .5rem; }
+#catalog-tracks .catalog-player .track-note { grid-row: span 2; }
+#catalog-tracks .catalog-player h2 { margin: 0; }
+#catalog-tracks .catalog-player p { margin: 0; font-size: .76rem; color: var(--muted); }
+#catalog-tracks .catalog-player .stem-wave { grid-row: auto; }
+#catalog-tracks .catalog-player .stem-volume { margin-inline-start: auto; }
+@media (max-width: 540px) {
+  .studio-home .top { flex-wrap: nowrap; padding-inline: 10px; gap: .4rem; }
+  .studio-home .brand { font-size: clamp(.66rem, 2.75vw, .9rem); gap: .3rem; letter-spacing: .025em; white-space: nowrap; }
+  .studio-home .brand-mark { width: 28px; height: 28px; border-radius: 9px; gap: 2px; }
+  .studio-home .brand-mark i { width: 2px; transform: scaleY(.65); }
+  .studio-home .catalog-nav { font-size: clamp(.66rem, 2.65vw, .86rem); white-space: nowrap; gap: .2rem; min-height: 44px; }
+  .studio-home .top-actions { gap: .2rem; }
+  .studio-home .top-actions :is(.theme, #install) { padding-inline: 0; min-width: 36px; }
+  .studio-home #install .install-label { display: none; }
+  .studio-home #install .install-symbol { display: inline; font-size: 1.15rem; }
+}

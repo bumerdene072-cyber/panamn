@@ -168,9 +168,6 @@ summary { cursor: pointer; }
 .studio-home .hero-play{left:-11%;background:linear-gradient(145deg,#ff7c79,#d5162b);transform:rotate(-14deg)}
 .studio-home .hero-note{right:-11%;background:linear-gradient(145deg,#a17aff,#5424df);transform:rotate(13deg)}
 .studio-waves{position:absolute;z-index:-1;inset:0;pointer-events:none;overflow:hidden}
-.studio-waves i{display:block;position:absolute;left:-30%;width:160%;height:300px;border-radius:50%;border-bottom:45px solid #8958f55b;box-shadow:0 18px 22px #7044f22c;top:125px;transform:rotate(8deg)}
-.studio-waves i:nth-child(2){transform:rotate(-8deg);border-color:#b28aff65;top:142px}
-.studio-waves i:nth-child(3){top:auto;bottom:-240px;border:0;border-top:55px solid #7750e5b3;box-shadow:0 -12px 25px #ab84ec55;transform:rotate(-5deg)}
 :root:not([data-theme="dark"]) .studio-home .panel{background:#fffc;border-color:#fff;box-shadow:0 14px 45px #5138ba25;backdrop-filter:blur(12px)}
 :root:not([data-theme="dark"]) .studio-home .sources{background:#ece9fc}
 :root:not([data-theme="dark"]) .studio-home .sources button[aria-pressed="true"]{box-shadow:0 3px #6132ed,0 4px 14px #6248cc20}
@@ -186,6 +183,23 @@ summary { cursor: pointer; }
  .studio-home .catalog-nav{order:3;flex-basis:100%}
  .studio-home .intro{padding:22px 0 24px}
  .studio-home .hero-wave{height:45px;margin-bottom:.9rem}
- .studio-waves i{height:230px;top:100px}
- .studio-waves i:nth-child(2){top:118px}
 }
+
+.studio-home{background:radial-gradient(ellipse at 50% 18%,#fff 0%,transparent 54%),radial-gradient(ellipse at 8% 18%,#f2dfff,transparent 42%),radial-gradient(ellipse at 93% 12%,#d6d6fc,transparent 52%),#f6f4ff}
+.studio-waves::before,.studio-waves::after{content:"";position:absolute;inset-inline:0;background:center/100% 100% no-repeat url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201440%20430%22%20preserveAspectRatio%3D%22none%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22a%22%3E%3Cstop%20stop-color%3D%22%236334ef%22%20stop-opacity%3D%22.78%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22%23d6c5ff%22%20stop-opacity%3D%22.12%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%237245ea%22%20stop-opacity%3D%22.74%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22b%22%20x2%3D%220%22%20y2%3D%221%22%20gradientUnits%3D%22objectBoundingBox%22%3E%3Cstop%20stop-color%3D%22%23b79aff%22%20stop-opacity%3D%22.65%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%239d80f8%22%20stop-opacity%3D%22.12%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20fill%3D%22url(%23b)%22%20d%3D%22M0%2080C240%2055%20307%20380%20654%20323S1100%2070%201440%20235V425C1135%20267%20945%20425%20651%20393S233%20190%200%20168Z%22%2F%3E%3Cpath%20fill%3D%22url(%23a)%22%20d%3D%22M0%20141C204%20190%20287%20356%20607%20350S1090%20267%201440%20101V174C1135%20296%20975%20429%20609%20389S216%20285%200%20231Z%22%2F%3E%3Cpath%20fill%3D%22%23c7b2fa%22%20opacity%3D%22.34%22%20d%3D%22M0%20214C260%20267%20352%20423%20720%20350S1180%20183%201440%20203V246C1133%20224%201025%20410%20720%20397S260%20326%200%20278Z%22%2F%3E%3Cpath%20fill%3D%22none%22%20stroke%3D%22%23fff%22%20stroke-opacity%3D%22.58%22%20stroke-width%3D%222%22%20d%3D%22M0%20143C204%20192%20287%20357%20607%20351S1090%20268%201440%20102%22%2F%3E%3C%2Fsvg%3E");height:clamp(240px,37vw,450px)}
+.studio-waves::before{top:70px}
+.studio-waves::after{bottom:-6rem;transform:scaleY(-1);height:clamp(140px,20vw,270px);opacity:.78}
+.studio-home .hero-tile{--angle:12deg;--float-time:5.8s;animation:studio-float var(--float-time) ease-in-out infinite;transform:rotate(var(--angle));filter:drop-shadow(0 15px 18px #39206c36)}
+.studio-home .hero-play{--angle:-14deg}
+.studio-home .hero-note{animation-delay:-2.6s}
+@keyframes studio-float{
+  0%,100%{transform:translateY(0) rotate(var(--angle))}
+  50%{transform:translateY(-14px) rotate(calc(var(--angle) + 6deg))}
+}
+@media (max-width:950px){
+ .studio-home .hero-tile{display:grid;top:17%;width:clamp(2rem,7vw,3.25rem);font-size:clamp(1rem,4vw,1.6rem)}
+ .studio-home .hero-play{left:4px}
+ .studio-home .hero-note{right:4px}
+ .studio-waves::before{top:65px}
+}
+@media(prefers-reduced-motion:reduce){.studio-home .hero-tile{animation:none}}

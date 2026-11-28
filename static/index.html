@@ -17,10 +17,10 @@
 <meta property="og:locale" content="mn_MN">
 <meta name="twitter:card" content="summary">
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=21">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=21">
-<link rel="stylesheet" href="/static/style.css?v=21">
-<script defer src="/static/main.js?v=21"></script>
+<link rel="icon" href="/static/icon-192.png?v=22">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=22">
+<link rel="stylesheet" href="/static/style.css?v=22">
+<script defer src="/static/main.js?v=22"></script>
 </head>
 <body>
 <header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
@@ -58,6 +58,7 @@
       <label for="link">Эсвэл YouTube холбоос оруулах</label>
       <input id="link" name="youtube_url" type="text" inputmode="url" maxlength="2048" autocomplete="url" required placeholder="YouTube холбоосоо хуулж оруулна уу">
       <small>Нээлттэй бичлэг · 10 минут хүртэл</small>
+      <label id="publish-option" hidden><input id="publish-catalog" type="checkbox" name="publish_catalog" value="yes" disabled> Нийтийн аяны санд нэмэхийг зөвшөөрч байна. Би энэ дууг нийтлэх, худалдах эрхтэй.</label>
       <button class="primary" type="submit" name="operation" value="separate">YouTube-ээс шууд салгах <span aria-hidden="true">→</span></button>
       <button class="source-export" type="submit" name="operation" value="convert">Эх MP3 үнэгүй татах ↓</button>
     </form>

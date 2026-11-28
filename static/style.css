@@ -239,3 +239,17 @@ summary { cursor: pointer; }
   .studio-home #install .install-label { display: none; }
   .studio-home #install .install-symbol { display: inline; font-size: 1.15rem; }
 }
+
+/* Compact catalogue cards */
+.studio-home #catalog-tracks { grid-auto-columns: min(17rem, 86%); }
+.studio-home #catalog-tracks .catalog-player {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: .55rem;
+  padding: .65rem; min-width: 0; align-items: stretch;
+}
+#catalog-tracks .catalog-player audio { display: none; }
+#catalog-tracks .catalog-player .stem-wave { height: 2.15rem; border: 1px solid var(--line); border-radius: .55rem; background: var(--soft); }
+#catalog-tracks .catalog-player .stem-controls { min-width: 0; display: flex; flex-wrap: nowrap; }
+#catalog-tracks .catalog-player .stem-play { flex: 0 0 44px; }
+#catalog-tracks .catalog-player .stem-volume { flex: 0 1 auto; }
+#catalog-tracks .catalog-player .stem-volume input { width: min(3.5rem, 15vw); min-width: 0; }
+#catalog-tracks .catalog-player .catalog-buy { min-width: 0; min-height: 44px; height: auto; margin: 0; font-size: .875rem; white-space: nowrap; }

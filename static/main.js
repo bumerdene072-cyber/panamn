@@ -118,11 +118,26 @@ function closeSongPlayer() {
   songPlayer.hidden = true;
 }
 
+const publishChoice = document.querySelector('#publish-catalog');
+const publishOption = document.querySelector('#publish-option');
+let selectedCatalogUrl = '';
+
+function updatePublishOption() {
+  publishOption.hidden = !selectedCatalogUrl || youtubeLink.value.trim() !== selectedCatalogUrl;
+  publishChoice.disabled = publishOption.hidden;
+  if (publishOption.hidden) publishChoice.checked = false;
+}
+
+youtubeLink.addEventListener('input', updatePublishOption);
+
 function playSong(result) {
   const id = result.id;
   if (!/^[A-Za-z0-9_-]{11}$/.test(id)) return;
   const watchUrl = 'https://www.youtube.com/watch?v=' + id;
   youtubeLink.value = watchUrl;
+  selectedCatalogUrl = result.channel && result.title !== id ? watchUrl : '';
+  publishChoice.checked = false;
+  updatePublishOption();
   watchYouTube.href = watchUrl;
   playerTitle.textContent = result.title;
   const player = document.createElement('iframe');
@@ -427,6 +442,8 @@ function clearJob() {
   activeJob = null;
   form.reset();
   youtube.reset();
+  selectedCatalogUrl = '';
+  updatePublishOption();
   searchRequest?.abort();
   searchForm.reset();
   closeSongPlayer();

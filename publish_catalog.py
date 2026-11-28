@@ -9,7 +9,7 @@ from uuid import uuid4
 from app import DATA_DIR, STEM_CACHE_FILES, read_job
 
 
-def publish(job_id, title, artist):
+def publish(job_id, title, artist, track_id=None):
     if not re.fullmatch(r"[a-f0-9]{32}", job_id):
         raise ValueError("Invalid job ID")
     job = read_job(job_id)
@@ -17,7 +17,7 @@ def publish(job_id, title, artist):
         raise ValueError("A ready, unexpired two-stem job is required")
     root = DATA_DIR / "catalog"
     root.mkdir(mode=0o700, exist_ok=True)
-    track_id = uuid4().hex
+    track_id = track_id or uuid4().hex
     with tempfile.TemporaryDirectory(dir=root) as staging:
         from pathlib import Path
         track = Path(staging) / track_id

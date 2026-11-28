@@ -607,6 +607,7 @@ const catalogForm = document.querySelector('#catalog-search');
 const catalogList = document.querySelector('#catalog-tracks');
 const catalogStatus = document.querySelector('#catalog-status');
 let catalogQuery = 0;
+let catalogDisposers = [];
 
 async function searchCatalog() {
   if (!catalogForm) return;
@@ -616,16 +617,20 @@ async function searchCatalog() {
     const {tracks, amount} = await request('/api/catalog?q=' + encodeURIComponent(value));
     if (query !== catalogQuery) return;
     const cards = tracks.map(track => {
-      const card = document.createElement('article');
-      const name = document.createElement('h2');
+      const card = results.querySelector('.stem-instrumental').cloneNode(true);
+      card.classList.add('catalog-player');
+      card.querySelector('.stem-download').remove();
+      const name = card.querySelector('h2');
       name.textContent = track.title;
       const artist = document.createElement('p');
       artist.textContent = track.artist;
-      const audio = document.createElement('audio');
-      audio.controls = true;
+      card.querySelector('.stem-identity').append(artist);
+      const audio = card.querySelector('audio');
       audio.preload = 'none';
       audio.src = track.preview;
       audio.setAttribute('aria-label', track.title + ' · 30 секундын ая');
+      card.querySelector('.stem-seek').setAttribute('aria-label', track.title + ' тоглуулах байрлал');
+      card.querySelector('.stem-volume input').setAttribute('aria-label', track.title + ' дууны хэмжээ');
       audio.addEventListener('play', () => {
         for (const other of document.querySelectorAll('audio')) {
           if (other !== audio) other.pause();
@@ -633,7 +638,10 @@ async function searchCatalog() {
       });
       const buy = document.createElement('button');
       buy.type = 'button';
-      buy.textContent = new Intl.NumberFormat('mn-MN').format(amount) + '₮ · Авах';
+      buy.className = 'qpay catalog-buy';
+      const icon = checkout.querySelector('.qpay-icon')?.cloneNode(true);
+      buy.textContent = 'QPay · ' + new Intl.NumberFormat('mn-MN').format(amount) + '₮';
+      if (icon) buy.prepend(icon);
       buy.addEventListener('click', async () => {
         if (jobBusy || paymentBusy) return;
         jobBusy = true;
@@ -651,10 +659,12 @@ async function searchCatalog() {
           updateJobButtons();
         }
       });
-      card.append(name, artist, audio, buy);
+      card.append(buy);
       return card;
     });
+    catalogDisposers.forEach(dispose => dispose());
     catalogList.replaceChildren(...cards);
+    catalogDisposers = cards.map(attachStemPlayer);
     catalogStatus.textContent = tracks.length ? 'Аянаас 30 секунд сонсоорой.' :
       value ? 'Тохирох ая олдсонгүй.' : 'Бэлэн ая удахгүй нэмэгдэнэ.';
   } catch {
@@ -668,7 +678,7 @@ catalogForm?.addEventListener('submit', event => {
 void searchCatalog();
 
 let waveformContext;
-for (const card of results.querySelectorAll('.stem-row')) {
+function attachStemPlayer(card) {
   const audio = card.querySelector('audio');
   const play = card.querySelector('.stem-play');
   const seek = card.querySelector('.stem-seek');
@@ -768,6 +778,13 @@ for (const card of results.querySelectorAll('.stem-row')) {
   for (const event of ['play', 'pause', 'ended', 'timeupdate', 'loadedmetadata', 'durationchange']) {
     audio.addEventListener(event, sync);
   }
-  if ('ResizeObserver' in window) new ResizeObserver(draw).observe(canvas);
+  const observer = 'ResizeObserver' in window ? new ResizeObserver(draw) : null;
+  observer?.observe(canvas);
   sync();
+  return () => {
+    audio.pause();
+    waveformRequest?.abort();
+    observer?.disconnect();
+  };
 }
+for (const card of results.querySelectorAll('.stem-row')) attachStemPlayer(card);

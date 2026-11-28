@@ -17,14 +17,15 @@
 <meta property="og:locale" content="mn_MN">
 <meta name="twitter:card" content="summary">
 <link rel="manifest" href="/static/manifest.webmanifest">
-<link rel="icon" href="/static/icon-192.png?v=20">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=20">
-<link rel="stylesheet" href="/static/style.css?v=20">
-<script defer src="/static/main.js?v=20"></script>
+<link rel="icon" href="/static/icon-192.png?v=21">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=21">
+<link rel="stylesheet" href="/static/style.css?v=21">
+<script defer src="/static/main.js?v=21"></script>
 </head>
 <body>
 <header class="top"><a class="brand" href="/" aria-label="PANAMN.SITE нүүр"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>PANAMN.SITE</a><div class="top-actions"><button id="install" type="button" hidden>Апп суулгах</button><button id="theme" class="theme" type="button" aria-label="Харанхуй горим" aria-pressed="false"><span aria-hidden="true">☾</span></button></div></header>
 <main>
+  <a href="#catalog" style="display:inline-block;margin-bottom:.7rem">♫ Бэлэн аяны сан</a>
   <section class="intro">
     <div class="hero-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <h1>Дуучны хоолой,<br><em>хөгжмийг салга.</em></h1>
@@ -111,6 +112,14 @@
       </div>
     </dialog>
   </section>
+<section id="catalog" class="panel">
+  <h2>Бэлэн ая</h2>
+  <form id="catalog-search"><label for="catalog-query">Дуу, дуучны нэр</label>
+    <div class="search-row"><input id="catalog-query" type="search" maxlength="120" placeholder="Дуу эсвэл дуучнаар хайх"><button type="submit">Хайх</button></div>
+  </form>
+  <p id="catalog-status" role="status"></p>
+  <div id="catalog-tracks" class="tracks"></div>
+</section>
 </main>
 <style>
 #help-widget{position:fixed;right:max(1rem,env(safe-area-inset-right));bottom:max(1rem,env(safe-area-inset-bottom));z-index:20}

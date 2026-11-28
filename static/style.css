@@ -203,3 +203,20 @@ summary { cursor: pointer; }
  .studio-waves::before{top:65px}
 }
 @media(prefers-reduced-motion:reduce){.studio-home .hero-tile{animation:none}}
+
+.studio-home #catalog-tracks {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-columns: none;
+  grid-auto-columns: min(18rem, 86%);
+  gap: .75rem;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-inline: contain;
+  padding: .2rem .2rem .7rem;
+  scrollbar-color: var(--accent) var(--soft);
+}
+.studio-home #catalog-tracks:empty { display: none; }
+.studio-home #catalog-tracks article { scroll-snap-align: start; }
+.studio-home #catalog-tracks h2,
+.studio-home #catalog-tracks article p { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

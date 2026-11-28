@@ -666,3 +666,108 @@ catalogForm?.addEventListener('submit', event => {
   void searchCatalog();
 });
 void searchCatalog();
+
+let waveformContext;
+for (const card of results.querySelectorAll('.stem-row')) {
+  const audio = card.querySelector('audio');
+  const play = card.querySelector('.stem-play');
+  const seek = card.querySelector('.stem-seek');
+  const volume = card.querySelector('.stem-volume input');
+  const time = card.querySelector('.stem-time');
+  const canvas = card.querySelector('canvas');
+  const ctx = canvas.getContext('2d');
+  const label = audio.getAttribute('aria-label');
+  let bins = [];
+  let waveformRequest;
+  let loadedSource;
+
+  function draw() {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (!ctx || !width || !height) return;
+    const scale = Math.min(devicePixelRatio || 1, 2);
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    ctx.scale(scale, scale);
+    ctx.fillStyle = getComputedStyle(canvas).color;
+    const fraction = Number.isFinite(audio.duration) && audio.duration > 0
+      ? audio.currentTime / audio.duration : 0;
+    const count = Math.max(1, Math.floor(width / 3));
+    for (let i = 0; i < count; i++) {
+      const peak = bins.length ? bins[Math.floor(i * bins.length / count)] : 0;
+      const bar = Math.max(2, peak * height * .92);
+      const x = i * width / count;
+      ctx.globalAlpha = i / count < fraction ? 1 : .48;
+      ctx.fillRect(x, (height - bar) / 2, 2, bar);
+    }
+  }
+
+  async function readWaveform() {
+    const source = audio.currentSrc;
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!source || !AudioContext || loadedSource === source) return;
+    loadedSource = source;
+    waveformRequest?.abort();
+    const request = new AbortController();
+    waveformRequest = request;
+    try {
+      const response = await fetch(source, {signal: request.signal});
+      if (!response.ok) return;
+      waveformContext ||= new AudioContext();
+      const decoded = await waveformContext.decodeAudioData(await response.arrayBuffer());
+      if (request.signal.aborted || audio.currentSrc !== source) return;
+      const samples = decoded.getChannelData(0);
+      const stride = Math.max(1, Math.floor(samples.length / 180));
+      bins = Array.from({length: 180}, (_, index) => {
+        let peak = 0;
+        for (let i = index * stride; i < Math.min(samples.length, (index + 1) * stride); i += 8) {
+          peak = Math.max(peak, Math.abs(samples[i]));
+        }
+        return peak;
+      });
+      const top = Math.max(.06, ...bins);
+      bins = bins.map(value => value / top);
+      draw();
+    } catch {
+      if (loadedSource === source && !request.signal.aborted) loadedSource = null;
+    }
+  }
+
+  function sync() {
+    const seconds = Math.floor(audio.currentTime || 0);
+    time.textContent = Math.floor(seconds / 60) + ':' + String(seconds % 60).padStart(2, '0');
+    const canSeek = Number.isFinite(audio.duration) && audio.duration > 0;
+    seek.disabled = !canSeek;
+    seek.value = canSeek ? Math.round(audio.currentTime / audio.duration * 1000) : 0;
+    play.textContent = audio.paused ? '▶' : '❚❚';
+    play.setAttribute('aria-label', label + (audio.paused ? ' тоглуулах' : ' түр зогсоох'));
+    draw();
+  }
+
+  play.addEventListener('click', () => {
+    if (!audio.paused) {
+      audio.pause();
+      return;
+    }
+    audio.play().catch(() => announce('Preview тоглуулахад алдаа гарлаа. Дахин оролдоно уу.', true));
+  });
+  seek.addEventListener('input', () => {
+    if (Number.isFinite(audio.duration)) audio.currentTime = Number(seek.value) * audio.duration / 1000;
+  });
+  volume.addEventListener('input', () => {
+    audio.volume = Number(volume.value);
+    audio.muted = Number(volume.value) === 0;
+  });
+  audio.addEventListener('playing', readWaveform);
+  audio.addEventListener('emptied', () => {
+    waveformRequest?.abort();
+    loadedSource = null;
+    bins = [];
+    sync();
+  });
+  for (const event of ['play', 'pause', 'ended', 'timeupdate', 'loadedmetadata', 'durationchange']) {
+    audio.addEventListener(event, sync);
+  }
+  if ('ResizeObserver' in window) new ResizeObserver(draw).observe(canvas);
+  sync();
+}
